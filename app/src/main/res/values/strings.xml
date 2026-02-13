@@ -1,3 +1,12 @@
 <resources>
-    <string name="app_name">Trivium-MVC</string>
+    <string name="app_name">
+        <n></n>Triv_Nw</string>
+
+    <string-array name="MACs_Dir">
+        <item>00:00:00:00:00:00</item>
+        <item>11:11:11:11:11:11</item>
+        <item>22:22:22:22:22:22</item>
+        <item>33:33:33:33:33:33</item>
+        <item>44:44:44:44:44:44</item>
+    </string-array>
 </resources>

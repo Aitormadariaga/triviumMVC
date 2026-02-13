@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Colores Material 3 para modo claro -->
+    <color name="my_light_primary">#6750A4</color>
+    <color name="my_light_secondary">#625B71</color>
+    <color name="my_light_tertiary">#7D5260</color>
+
+    <!-- Colores específicos para elementos UI -->
+    <color name="background_color">#FFFFFF</color>
+    <color name="text_color">#000000</color>
+    <color name="edit_text_background">#F3F3F3</color>
+    <color name="edit_text_foreground">#000000</color>
+
+    <!-- Colores que usas en la app -->
+    <color name="yellow">#FFFF5733</color>
+    <color name="green">#FF00FF00</color>
+    <color name="blue">#FF0000FF</color>
+    <color name="red">#FFFF0000</color>
+    <color name = "white">#FFFFFF</color>
 </resources>

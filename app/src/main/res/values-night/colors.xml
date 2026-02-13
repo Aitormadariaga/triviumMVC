@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores Material 3 para modo oscuro -->
+    <color name="my_light_primary">#D0BCFF</color>
+    <color name="my_light_secondary">#CCC2DC</color>
+    <color name="my_light_tertiary">#EFB8C8</color>
+
+    <!-- Colores específicos para elementos UI en modo oscuro -->
+    <color name="background_color">#1C1B1F</color>
+    <color name="text_color">#FFFFFF</color>
+    <color name="edit_text_background">#2E2D31</color>
+    <color name="edit_text_foreground">#FFFFFF</color>
+
+    <!-- Colores que usas en la app (ajustados para modo oscuro) -->
+    <color name="yellow">#FFFFB84C</color>
+    <color name="green">#FF80E080</color>
+    <color name="blue">#FF8080FF</color>
+    <color name="red">#FFFF8080</color>
+</resources>

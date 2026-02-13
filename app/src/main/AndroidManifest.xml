@@ -1,26 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- Permisos de Bluetooth para Android 11 y anteriores -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Permisos de Bluetooth para Android 12+ -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" /> <!-- Si necesitas ubicación para Bluetooth -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> <!-- Permisos de almacenamiento -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
 
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/neurona_nw"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:requestLegacyExternalStorage="true"
+        android:roundIcon="@mipmap/neurona_nw"
         android:supportsRtl="true"
         android:theme="@style/Theme.TriviumMVC"
         tools:targetApi="31">
+        <!-- SplashActivity es la actividad de inicio -->
         <activity
-            android:name=".view.MainActivity"
+            android:name=".view.SplashActivity"
+            android:theme="@style/SplashTheme"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- LoginActivity como actividad principal -->
+        <activity
+            android:name=".view.LoginActivity"
+            android:exported="false" />
+
+        <!-- MainActivity como actividad secundaria -->
+        <activity
+            android:name=".view.MainActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="landscape" />
+        <!-- AdminUsuariosActivity - SOLO PARA ADMIN -->
+        <activity
+            android:name=".view.AdminUsuariosActivity"
+            android:exported="false"
+            android:label="Administrar Usuarios"
+            android:parentActivityName=".view.MainActivity" />
     </application>
 
 </manifest>

@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    app:layout_constraintBaseline_toBottomOf="parent">
+
+    <ScrollView
+        android:id="@+id/PacienteScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/crear_paciente">
+
+        <RelativeLayout
+            android:id="@+id/grupoCrearPac"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fadeScrollbars="true"
+            android:orientation="vertical"
+            android:scrollbarAlwaysDrawVerticalTrack="true"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/editDNI"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="DNI (obligatorio)"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editNombre"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editDNI"
+                android:hint="Nombre (obligatorio)"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editApellido1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editNombre"
+                android:hint="Primer apellido (obligatorio)"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editApellido2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editApellido1"
+                android:hint="Segundo apellido"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editCIC"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editApellido2"
+                android:hint="CIC"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editPatologia"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editCIC"
+                android:hint="Patología"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editMedicacion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editPatologia"
+                android:hint="Medicación"
+                android:inputType="text" />
+
+            <EditText
+                android:id="@+id/editIntensidad"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editMedicacion"
+                android:hint="Intensidad"
+                android:inputType="number" />
+
+            <EditText
+                android:id="@+id/editTiempo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editIntensidad"
+                android:hint="Tiempo (minutos)"
+                android:inputType="number" />
+
+            <EditText
+                android:id="@+id/editIntensidad2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editTiempo"
+                android:hint="Intensidad2"
+                android:inputType="number"
+                android:visibility="gone" />
+
+            <EditText
+                android:id="@+id/editTiempo2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editIntensidad2"
+                android:hint="Tiempo2 (minutos)"
+                android:inputType="number"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btnGuardar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/editTiempo2"
+                android:text="Guardar" />
+
+        </RelativeLayout>
+
+    </ScrollView>
+
+    <RelativeLayout
+        android:id="@+id/detallesPacienteLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/crear_paciente"
+        android:padding="16dp"
+        android:visibility="gone">
+
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTituloPaciente"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:text="Detalles del Paciente"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvDNI"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvTituloPaciente"
+                android:text="DNI: " />
+
+            <TextView
+                android:id="@+id/tvCIC"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvDNI"
+                android:text="CIC: " />
+
+            <TextView
+                android:id="@+id/tvNombreCompleto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvCIC"
+                android:text="Nombre: " />
+
+            <TextView
+                android:id="@+id/tvPatologia"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvNombreCompleto"
+                android:text="Patología: " />
+
+            <TextView
+                android:id="@+id/tvMedicacion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvPatologia"
+                android:text="Medicación: " />
+
+            <TextView
+                android:id="@+id/tvIntensidad"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvMedicacion"
+                android:text="Intensidad: " />
+
+            <TextView
+                android:id="@+id/tvTiempo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvIntensidad"
+                android:text="Tiempo (min): " />
+
+            <TextView
+                android:id="@+id/tvIntensidad2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvTiempo"
+                android:text="Intensidad2: "
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvTiempo2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvIntensidad2"
+                android:text="Tiempo2 (min): "
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/editarPaciente"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvTiempo2"
+                android:text="Editar Paciente" />
+
+            <Button
+                android:id="@+id/btnVerHistorico"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvTiempo2"
+                android:layout_toEndOf="@id/editarPaciente"
+                android:text="Ver Histórico" />
+
+            <Button
+                android:id="@+id/borrarPaciente"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvTiempo2"
+                android:layout_toEndOf="@id/btnVerHistorico"
+                android:text="Borrar Paciente"
+                android:textColorLink="#FFFFFF"
+                app:backgroundTint="#FB0000" />
+        </RelativeLayout>
+
+
+        <Button
+            android:id="@+id/btnIniciarTratamiento"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginRight="20dp"
+            android:text="Iniciar Tratamiento" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/listaLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/boton_verLista"
+        android:layout_alignParentBottom="false"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/botonBuscar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="5dp"
+            android:text="Buscar" />
+
+        <ListView
+            android:id="@+id/listaPacientes"
+            android:layout_width="match_parent"
+            android:layout_height="697dp"
+            android:layout_marginBottom="20dp"
+            android:layout_toStartOf="@id/botonBuscar" />
+    </RelativeLayout>
+
+    <Button
+        android:id="@+id/crear_paciente"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginRight="20dp"
+        android:layout_toLeftOf="@id/boton_verLista"
+        android:text="Crear Paciente" />
+
+    <Button
+        android:id="@+id/boton_verLista"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_marginTop="20dp"
+        android:layout_marginRight="20dp"
+        android:text="Ver Lista" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_toStartOf="@id/crear_paciente">
+
+        <TextView
+            android:id="@+id/nombrePaciente"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:text="No Hay Paciente Seleccionado"
+            android:textSize="34sp"
+            tools:layout_editor_absoluteX="30dp"
+            tools:layout_editor_absoluteY="20dp" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</RelativeLayout>

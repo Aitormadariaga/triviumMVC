@@ -1,18 +1,446 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".view.MainActivity">
+    tools:context=".MainActivity">
 
-    <TextView
-        android:layout_width="wrap_content"
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:orientation="vertical"
+        android:padding="16dp">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <!-- Agregar este Toolbar -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            android:elevation="4dp"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"/>
+
+        <!-- Título o información general -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="TRIVIUM GOR"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Contenedor FlexBox para los grupos de controles -->
+        <com.google.android.flexbox.FlexboxLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:flexDirection="row"
+            app:flexWrap="wrap"
+            app:justifyContent="space_between"
+            android:layout_marginBottom="16dp">
+
+            <!-- Grupo 1: Controles del primer dispositivo -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:background="#E0E0E0"
+                android:layout_marginEnd="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Dispositivo 1"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/deviceBluetoothNom1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TextView"
+                    android:textAlignment="center"
+                    android:textStyle="italic"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/pacienteDispo1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TextView"
+                    android:textAlignment="center"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/button_Connect"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Conectar"
+                    android:layout_marginBottom="4dp"/>
+
+                <Button
+                    android:id="@+id/button_IniPulsos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Iniciar"
+                    android:layout_marginBottom="4dp"/>
+
+                <Button
+                    android:id="@+id/button_FinPulsos"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Finalizar"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:id="@+id/textView_Int"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Intensidad:"/>
+
+                    <EditText
+                        android:id="@+id/SetIntensidad"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:inputType="number"
+                        android:text="10"
+                        android:imeOptions="actionNext"
+                        android:nextFocusForward="@id/SetDuracion"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/buttonAmpliDec"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="-"/>
+
+                    <Button
+                        android:id="@+id/buttonAmpliInc"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="+"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:id="@+id/textView_Duracion"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Duración:"/>
+
+                    <EditText
+                        android:id="@+id/SetDuracion"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:inputType="number"
+                        android:text="20"
+                        android:imeOptions="actionDone"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:id="@+id/textView_tiemporestante"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="T. Restante:"/>
+
+                    <EditText
+                        android:id="@+id/SetTiempoRestante"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:inputType="number"
+                        android:enabled="false"
+                        android:text="20"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:id="@+id/textView_NivelBatt"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Batería:"/>
+
+                    <EditText
+                        android:id="@+id/LevelBatt"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:enabled="false"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Sección central: Gestión de pacientes y Desconectar (uno encima del otro) -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginEnd="8dp"
+                android:layout_marginStart="8dp">
+
+                <!-- Gestión de pacientes -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="8dp"
+                    android:background="#E8F5E9"
+                    android:gravity="center"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Gestión de Pacientes"
+                        android:textStyle="bold"
+                        android:textSize="18sp"
+                        android:gravity="center"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:id="@+id/nombrePaciente"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Ningún paciente seleccionado"
+                        android:textStyle="italic"
+                        android:gravity="center"
+                        android:layout_marginBottom="8dp"/>
+
+                    <Button
+                        android:id="@+id/btnGuardarConf"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="Guardar Configuración"
+                        android:visibility="gone" />
+
+                    <Button
+                        android:id="@+id/ir_ven_Paciente"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Conectar Paciente" />
+
+                    <Button
+                        android:id="@+id/verLista"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Ver Lista" />
+                </LinearLayout>
+
+                <!-- Espaciador para alinear con el indicador de batería -->
+                <Space
+                    android:layout_width="match_parent"
+                    android:layout_height="94dp"/>
+
+                <!-- Botón Desconectar en su propia caja -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="8dp">
+
+                    <Button
+                        android:id="@+id/buttonDisconnect"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Desconectar"
+                        android:textColorLink="#ff6750A3" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Grupo 2: Controles del segundo dispositivo -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:background="#E0E0E0">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Dispositivo 2"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/deviceBluetoothNom2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TextView"
+                    android:textAlignment="center"
+                    android:textStyle="italic"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/pacienteDispo2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="TextView"
+                    android:textAlignment="center"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/button_Connect2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Conectar"
+                    android:layout_marginBottom="4dp"/>
+
+                <Button
+                    android:id="@+id/button_IniPulsos2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Iniciar"
+                    android:layout_marginBottom="4dp"/>
+
+                <Button
+                    android:id="@+id/button_FinPulsos2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Finalizar"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Intensidad:"/>
+
+                    <EditText
+                        android:id="@+id/SetIntensidad3"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:inputType="number"
+                        android:text="10"
+                        android:imeOptions="actionNext"
+                        android:nextFocusForward="@id/SetDuracion2"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/buttonAmpliDec3"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="-"/>
+
+                    <Button
+                        android:id="@+id/buttonAmpliInc3"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="+"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Duración:"/>
+
+                    <EditText
+                        android:id="@+id/SetDuracion2"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:inputType="number"
+                        android:text="20"
+                        android:imeOptions="actionDone"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="T. Restante:"/>
+
+                    <EditText
+                        android:id="@+id/SetTiempoRestante2"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:inputType="number"
+                        android:enabled="false"
+                        android:text="20"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:id="@+id/textView_NivelBatt2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Batería:"/>
+
+                    <EditText
+                        android:id="@+id/LevelBatt2"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:enabled="false"/>
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.flexbox.FlexboxLayout>
+    </LinearLayout>
+</ScrollView>
