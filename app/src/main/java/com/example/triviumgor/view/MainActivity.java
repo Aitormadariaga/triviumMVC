@@ -1,8 +1,10 @@
-package com.example.triviumgor;
+package com.example.triviumgor.view;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
+
+import com.example.triviumgor.R;
 
 public class MainActivity extends AppCompatActivity {
 
