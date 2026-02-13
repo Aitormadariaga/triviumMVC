@@ -1,24 +1,23 @@
 package com.example.triviumgor.model;
 
 public class Paciente {
-    //atributos de Paciente
+
     private int ID;
-    private String CIC; //Código de Identificación Corporativo (puede ser int)
+    private String CIC;
     private String DNI;
     private String nombre;
     private String ap1;
     private String ap2;
-    private String patologia; //es solo texto usando comas si hay mas de uno no string (puede ser array de string, hacerlo si sobra tiempo)
-    private String medicacion; // lo mismo que patologia
+    private String patologia;
+    private String medicacion;
     private int intensidad;
-    private int tiempoM; //tiempo en minutos
-
+    private int tiempoM;
     private int intensidad2;
     private int tiempoM2;
 
-//uso sin dos dispositivos
-    public Paciente(int ID, String CIC, String DNI, String nombre, String ap1, String ap2, String patologia, String medicacion, int intensidad, int tiempoM) {
-        this.ID = ID;
+    // Constructor sin ID (para inserciones)
+    public Paciente(String CIC, String DNI, String nombre, String ap1, String ap2,
+                    String patologia, String medicacion, int intensidad, int tiempoM) {
         this.CIC = CIC;
         this.DNI = DNI;
         this.nombre = nombre;
@@ -32,137 +31,68 @@ public class Paciente {
         this.tiempoM2 = 0;
     }
 
-    //para el insert
-
-
-    public Paciente(String CIC, String DNI, String nombre, String ap1, String ap2, String patologia, String medicacion, int intensidad, int tiempoM) {
-        this.CIC = CIC;
-        this.DNI = DNI;
-        this.nombre = nombre;
-        this.ap1 = ap1;
-        this.ap2 = ap2;
-        this.patologia = patologia;
-        this.medicacion = medicacion;
-        this.intensidad = intensidad;
-        this.tiempoM = tiempoM;
-        this.intensidad2 = 0;
-        this.tiempoM2 = 0;
+    // Constructor con ID (1 dispositivo)
+    public Paciente(int ID, String CIC, String DNI, String nombre, String ap1, String ap2,
+                    String patologia, String medicacion, int intensidad, int tiempoM) {
+        this(CIC, DNI, nombre, ap1, ap2, patologia, medicacion, intensidad, tiempoM);
+        this.ID = ID;
     }
 
-
-    //para 2 dispositivos
-    public Paciente(int ID, String CIC, String DNI, String nombre, String ap1, String ap2, String patologia, String medicacion, int intensidad, int tiempoM, int intensidad2, int tiempoM2) {
-        this.ID = ID;
-        this.CIC = CIC;
-        this.DNI = DNI;
-        this.nombre = nombre;
-        this.ap1 = ap1;
-        this.ap2 = ap2;
-        this.patologia = patologia;
-        this.medicacion = medicacion;
-        this.intensidad = intensidad;
-        this.tiempoM = tiempoM;
+    // Constructor con ID (2 dispositivos)
+    public Paciente(int ID, String CIC, String DNI, String nombre, String ap1, String ap2,
+                    String patologia, String medicacion, int intensidad, int tiempoM,
+                    int intensidad2, int tiempoM2) {
+        this(ID, CIC, DNI, nombre, ap1, ap2, patologia, medicacion, intensidad, tiempoM);
         this.intensidad2 = intensidad2;
         this.tiempoM2 = tiempoM2;
     }
 
-    //getter y setter
-    public int getID() {
-        return ID;
+    /**
+     * Devuelve el nombre completo: "Nombre Apellido1 Apellido2"
+     */
+    public String getNombreCompleto() {
+        String completo = nombre + " " + ap1;
+        if (ap2 != null && !ap2.isEmpty()) {
+            completo += " " + ap2;
+        }
+        return completo;
     }
 
-    public void setID(int ID) {
-        this.ID = ID;
-    }
+    // Getters y Setters
 
-    public String getCIC() {
-        return CIC;
-    }
+    public int getID() { return ID; }
+    public void setID(int ID) { this.ID = ID; }
 
-    public void setCIC(String CIC) {
-        this.CIC = CIC;
-    }
+    public String getCIC() { return CIC; }
+    public void setCIC(String CIC) { this.CIC = CIC; }
 
-    public String getDNI() {
-        return DNI;
-    }
+    public String getDNI() { return DNI; }
+    public void setDNI(String DNI) { this.DNI = DNI; }
 
-    public void setDNI(String DNI) {
-        this.DNI = DNI;
-    }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public String getNombre() {
-        return nombre;
-    }
+    public String getAp1() { return ap1; }
+    public void setAp1(String ap1) { this.ap1 = ap1; }
 
-    public void setNombre(String nombre) {
-        this.nombre = nombre;
-    }
+    public String getAp2() { return ap2; }
+    public void setAp2(String ap2) { this.ap2 = ap2; }
 
-    public String getAp1() {
-        return ap1;
-    }
+    public String getPatologia() { return patologia; }
+    public void setPatologia(String patologia) { this.patologia = patologia; }
 
-    public void setAp1(String ap1) {
-        this.ap1 = ap1;
-    }
+    public String getMedicacion() { return medicacion; }
+    public void setMedicacion(String medicacion) { this.medicacion = medicacion; }
 
-    public String getAp2() {
-        return ap2;
-    }
+    public int getIntensidad() { return intensidad; }
+    public void setIntensidad(int intensidad) { this.intensidad = intensidad; }
 
-    public void setAp2(String ap2) {
-        this.ap2 = ap2;
-    }
+    public int getTiempoM() { return tiempoM; }
+    public void setTiempoM(int tiempoM) { this.tiempoM = tiempoM; }
 
-    public String getPatologia() {
-        return patologia;
-    }
+    public int getIntensidad2() { return intensidad2; }
+    public void setIntensidad2(int intensidad2) { this.intensidad2 = intensidad2; }
 
-    public void setPatologia(String patologia) {
-        this.patologia = patologia;
-    }
-
-    public String getMedicacion() {
-        return medicacion;
-    }
-
-    public void setMedicacion(String medicacion) {
-        this.medicacion = medicacion;
-    }
-
-    public int getIntensidad() {
-        return intensidad;
-    }
-
-    public void setIntensidad(int intensidad) {
-        this.intensidad = intensidad;
-    }
-
-    public int getTiempoM() {
-        return tiempoM;
-    }
-
-    public void setTiempoM(int tiempoM) {
-        this.tiempoM = tiempoM;
-    }
-
-
-    //0ara 2 de intensidad
-
-    public int getIntensidad2() {
-        return intensidad2;
-    }
-
-    public void setIntensidad2(int intensidad2) {
-        this.intensidad2 = intensidad2;
-    }
-
-    public int getTiempoM2() {
-        return tiempoM2;
-    }
-
-    public void setTiempoM2(int tiempoM2) {
-        this.tiempoM2 = tiempoM2;
-    }
+    public int getTiempoM2() { return tiempoM2; }
+    public void setTiempoM2(int tiempoM2) { this.tiempoM2 = tiempoM2; }
 }
