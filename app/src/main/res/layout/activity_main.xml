@@ -5,8 +5,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
-
+    tools:context=".view.MainActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,7 +13,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Agregar este Toolbar -->
+        <!-- Toolbar -->
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
@@ -23,7 +22,7 @@
             android:elevation="4dp"
             android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"/>
 
-        <!-- Título o información general -->
+        <!-- Título -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -33,7 +32,7 @@
             android:gravity="center"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Contenedor FlexBox para los grupos de controles -->
+        <!-- Contenedor FlexBox -->
         <com.google.android.flexbox.FlexboxLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -42,7 +41,7 @@
             app:justifyContent="space_between"
             android:layout_marginBottom="16dp">
 
-            <!-- Grupo 1: Controles del primer dispositivo -->
+            <!-- Grupo 1: Dispositivo 1 -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -60,7 +59,7 @@
                     android:layout_marginBottom="8dp"/>
 
                 <TextView
-                    android:id="@+id/deviceBluetoothNom1"
+                    android:id="@+id/dispBluetoothNom1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="TextView"
@@ -69,7 +68,7 @@
                     android:visibility="gone" />
 
                 <TextView
-                    android:id="@+id/pacienteDispo1"
+                    android:id="@+id/nombreDispositivoPac1"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="TextView"
@@ -77,7 +76,7 @@
                     android:visibility="gone" />
 
                 <Button
-                    android:id="@+id/button_Connect"
+                    android:id="@+id/button_conectar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Conectar"
@@ -103,20 +102,19 @@
                     android:layout_marginTop="8dp">
 
                     <TextView
-                        android:id="@+id/textView_Int"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Intensidad:"/>
 
                     <EditText
-                        android:id="@+id/SetIntensidad"
+                        android:id="@+id/editTextNumberDecimal3"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:inputType="number"
                         android:text="10"
                         android:imeOptions="actionNext"
-                        android:nextFocusForward="@id/SetDuracion"/>
+                        android:nextFocusForward="@id/editTextNumberDecimal4"/>
                 </LinearLayout>
 
                 <LinearLayout
@@ -146,13 +144,12 @@
                     android:layout_marginTop="8dp">
 
                     <TextView
-                        android:id="@+id/textView_Duracion"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Duración:"/>
 
                     <EditText
-                        android:id="@+id/SetDuracion"
+                        android:id="@+id/editTextNumberDecimal4"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -168,13 +165,12 @@
                     android:layout_marginTop="8dp">
 
                     <TextView
-                        android:id="@+id/textView_tiemporestante"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="T. Restante:"/>
 
                     <EditText
-                        android:id="@+id/SetTiempoRestante"
+                        android:id="@+id/editTextNumberDecimal5"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -190,21 +186,26 @@
                     android:layout_marginTop="8dp">
 
                     <TextView
-                        android:id="@+id/textView_NivelBatt"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Batería:"/>
 
                     <EditText
-                        android:id="@+id/LevelBatt"
+                        android:id="@+id/editTextNivelBatt"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:enabled="false"/>
                 </LinearLayout>
+
+                <TextView
+                    android:id="@+id/OtroTexto6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
             </LinearLayout>
 
-            <!-- Sección central: Gestión de pacientes y Desconectar (uno encima del otro) -->
+            <!-- Sección central: Gestión de pacientes y Desconectar -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -249,24 +250,24 @@
                         android:visibility="gone" />
 
                     <Button
-                        android:id="@+id/ir_ven_Paciente"
+                        android:id="@+id/btnPaciente"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Conectar Paciente" />
 
                     <Button
-                        android:id="@+id/verLista"
+                        android:id="@+id/btnVerLista"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Ver Lista" />
                 </LinearLayout>
 
-                <!-- Espaciador para alinear con el indicador de batería -->
+                <!-- Espaciador -->
                 <Space
                     android:layout_width="match_parent"
                     android:layout_height="94dp"/>
 
-                <!-- Botón Desconectar en su propia caja -->
+                <!-- Botón Desconectar -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -284,7 +285,7 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Grupo 2: Controles del segundo dispositivo -->
+            <!-- Grupo 2: Dispositivo 2 -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -301,7 +302,7 @@
                     android:layout_marginBottom="8dp"/>
 
                 <TextView
-                    android:id="@+id/deviceBluetoothNom2"
+                    android:id="@+id/dispBluetoothNom2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="TextView"
@@ -310,7 +311,7 @@
                     android:visibility="gone" />
 
                 <TextView
-                    android:id="@+id/pacienteDispo2"
+                    android:id="@+id/nombreDispositivoPac2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="TextView"
@@ -318,7 +319,7 @@
                     android:visibility="gone" />
 
                 <Button
-                    android:id="@+id/button_Connect2"
+                    android:id="@+id/button_conectar2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Conectar"
@@ -349,14 +350,14 @@
                         android:text="Intensidad:"/>
 
                     <EditText
-                        android:id="@+id/SetIntensidad3"
+                        android:id="@+id/editTextNumberDecimal10"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:inputType="number"
                         android:text="10"
                         android:imeOptions="actionNext"
-                        android:nextFocusForward="@id/SetDuracion2"/>
+                        android:nextFocusForward="@id/editTextNumberDecimal12"/>
                 </LinearLayout>
 
                 <LinearLayout
@@ -391,7 +392,7 @@
                         android:text="Duración:"/>
 
                     <EditText
-                        android:id="@+id/SetDuracion2"
+                        android:id="@+id/editTextNumberDecimal12"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -412,7 +413,7 @@
                         android:text="T. Restante:"/>
 
                     <EditText
-                        android:id="@+id/SetTiempoRestante2"
+                        android:id="@+id/editTextNumberDecimal13"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -428,18 +429,23 @@
                     android:layout_marginTop="8dp">
 
                     <TextView
-                        android:id="@+id/textView_NivelBatt2"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Batería:"/>
 
                     <EditText
-                        android:id="@+id/LevelBatt2"
+                        android:id="@+id/editTextNivelBatt2"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:enabled="false"/>
                 </LinearLayout>
+
+                <TextView
+                    android:id="@+id/OtroTexto7"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
             </LinearLayout>
         </com.google.android.flexbox.FlexboxLayout>
     </LinearLayout>

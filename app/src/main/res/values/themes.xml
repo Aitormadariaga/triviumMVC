@@ -1,12 +1,9 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.TriviumMVC" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
+    <style name="Base.Theme.TriviumMVC" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/my_light_primary</item>
         <item name="colorSecondary">@color/my_light_secondary</item>
-        <item name="colorTertiary">@color/my_light_tertiary</item>
 
-        <!-- Configuración de colores para textos y fondos -->
         <item name="android:windowBackground">@color/background_color</item>
         <item name="android:textColor">@color/text_color</item>
         <item name="android:editTextColor">@color/edit_text_foreground</item>
@@ -15,6 +12,7 @@
     </style>
 
     <style name="Theme.TriviumMVC" parent="Base.Theme.TriviumMVC" />
+
     <!-- Estilo personalizado para EditText -->
     <style name="AppEditTextStyle" parent="Widget.AppCompat.EditText">
         <item name="android:textColor">@color/edit_text_foreground</item>
