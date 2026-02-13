@@ -9,8 +9,8 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.util.Log;
 
-import com.example.triviumgor.Sesion;
-import com.example.triviumgor.Paciente;
+import com.example.triviumgor.model.Sesion;
+import com.example.triviumgor.model.Paciente;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
