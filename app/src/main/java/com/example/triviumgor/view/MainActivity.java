@@ -13,6 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -393,21 +394,14 @@ public class MainActivity extends AppCompatActivity
         // PACIENTE
         ventanaPacienteBtn.setOnClickListener(v -> {
             Intent intent = new Intent(this, VentanaPacienteActivity.class);
-            if (nombrePaciente != null) {
-                intent.putExtra("NOMBRE_PACIENTE", nombrePaciente);
-                intent.putExtra("DNI_PACIENTE", DNIpaciente);
-            }
-            intent.putExtra("DISPOSITIVO_ELEC", opcionDispositivoInt);
-            if (DNIpaciente2 != null) {
-                intent.putExtra("DNI_PAC_OTRODISP", DNIpaciente2);
-            }
-            startActivityForResult(intent, PACIENTE_REQUEST_CODE);
+            mostrarDialogoSeleccionarPacienteADispositivo(intent);
         });
 
         // GUARDAR CONFIG
         ConectarPaciente.setOnClickListener(v -> {
             guardarConfiguracionPaciente();
         });
+
 
         // VER LISTA
         btnVerLista.setOnClickListener(v -> {
@@ -513,7 +507,12 @@ public class MainActivity extends AppCompatActivity
                                      int intensidad, int duracion) {
         Paciente pac = buscarPacientePorDNI(dniPaciente);
         if (pac != null) {
-            sesionController.registrarSesion(pac.getID(), nombreDisp, intensidad, duracion);
+            long error = sesionController.registrarSesion(pac.getID(), nombreDisp, intensidad, duracion);
+            if (error == (long)-1){
+                Toast.makeText(this, "Hubo error al guardar la Sesion en la BBDD", Toast.LENGTH_LONG);
+            }
+        }else{
+            Toast.makeText(this,"No se a podido detectar al Paciente", Toast.LENGTH_SHORT);
         }
     }
 
@@ -548,6 +547,103 @@ public class MainActivity extends AppCompatActivity
     // DIÁLOGOS
     // ========================
 
+    private void mostrarDialogoSeleccionarPacienteADispositivo(Intent intent) {
+        LayoutInflater inflater = getLayoutInflater();
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        builder.setTitle("A que dispositivo conectar el Paciente?");
+        builder.setPositiveButton("Dispositivo1", (dialog, which) -> {
+            if (opcionDispositivoInt == 3) {
+                DNIpaciente2 = "";
+                nombreDispositivoPac2.setVisibility(View.GONE);
+                nombrePaciente2 = "";
+                Param10.setText("10");
+                Param12.setText("30");
+                Param13.setText("30");
+            }
+
+            //opcionDispositivoInt = 1;
+            if (Param3 != null) {
+                intent.putExtra("INTENSIDAD", Param3.getText());
+            }
+            if (Param4 != null) {
+                intent.putExtra("TIEMPO", Param4.getText());
+            }
+
+
+            intent.putExtra("NOMBRE_PACIENTE", nombrePaciente);
+            intent.putExtra("DNI_PACIENTE", DNIpaciente);
+            intent.putExtra("DISPOSITIVO_ELEC", 1);
+
+            if (DNIpaciente2 != null && !DNIpaciente2.isEmpty()) {
+                intent.putExtra("DNI_PAC_OTRODISP", DNIpaciente2);
+            }
+
+            // Iniciar actividad esperando resultado
+            startActivityForResult(intent, PACIENTE_REQUEST_CODE);
+        });
+
+        builder.setNegativeButton("Dispositivo2", (dialog, which) -> {
+            if (opcionDispositivoInt == 3) {
+                DNIpaciente = "";
+                nombreDispositivoPac1.setVisibility(View.GONE);
+                nombrePaciente = "";
+                Param3.setText("10");
+                Param4.setText("30");
+                Param5.setText("30");
+            }
+            //opcionDispositivoInt = 2;
+            if (Param10 != null) {
+                intent.putExtra("INTENSIDAD", Param10.getText());
+            }
+            if (Param12 != null) {
+                intent.putExtra("TIEMPO", Param12.getText());
+            }
+
+
+            intent.putExtra("NOMBRE_PACIENTE", nombrePaciente2);
+            intent.putExtra("DNI_PACIENTE", DNIpaciente2);
+            intent.putExtra("DISPOSITIVO_ELEC", 2);
+
+
+            if (DNIpaciente != null && !DNIpaciente.isEmpty()) {
+                intent.putExtra("DNI_PAC_OTRODISP", DNIpaciente);
+            }
+
+            // Iniciar actividad esperando resultado
+            startActivityForResult(intent, PACIENTE_REQUEST_CODE);
+
+        });
+        builder.setNeutralButton("Todos los dispositivos", (dialog, which) -> {
+            //opcionDispositivoInt = 3; //esto despues causa problemas
+
+            if (Param3 != null) {
+                intent.putExtra("INTENSIDAD", Param3.getText());
+            }
+            if (Param4 != null) {
+                intent.putExtra("TIEMPO", Param4.getText());
+            }
+
+            if (nombrePaciente != null && !nombrePaciente.isEmpty() &&
+                    DNIpaciente != null && !DNIpaciente.isEmpty()) {
+                intent.putExtra("NOMBRE_PACIENTE", nombrePaciente);
+                intent.putExtra("DNI_PACIENTE", DNIpaciente);
+            }
+
+            if (nombrePaciente2 != null && !nombrePaciente2.isEmpty() &&
+                    DNIpaciente2 != null && !DNIpaciente2.isEmpty()) {
+                intent.putExtra("NOMBRE_PACIENTE", nombrePaciente2);
+                intent.putExtra("DNI_PACIENTE", DNIpaciente2);
+
+
+            }
+            intent.putExtra("DISPOSITIVO_ELEC", 3);
+            // Iniciar actividad esperando resultado
+            startActivityForResult(intent, PACIENTE_REQUEST_CODE);
+        });
+
+        builder.create().show();
+    }
     private void mostrarDialogoDesconectar() {
         String[] opciones;
         if (dispositivo1.isConnected() && dispositivo2.isConnected()) {
@@ -620,7 +716,10 @@ public class MainActivity extends AppCompatActivity
                 if (Param3 != null) Param3.setText(String.valueOf(intensidad));
                 if (Param4 != null) Param4.setText(String.valueOf(tiempo));
                 if (Param5 != null) Param5.setText(String.valueOf(tiempo));
-                if (nombreDispositivoPac1 != null) nombreDispositivoPac1.setText(nombrePaciente);
+                if (nombreDispositivoPac1 != null){
+                    nombreDispositivoPac1.setText(nombrePaciente);
+                    nombreDispositivoPac1.setVisibility(View.VISIBLE);
+                }
             }
 
             if (opcionNuevo == 2 || opcionNuevo == 3) {
@@ -637,7 +736,10 @@ public class MainActivity extends AppCompatActivity
                 if (Param10 != null) Param10.setText(String.valueOf(intensidad2 > 0 ? intensidad2 : data.getIntExtra("INTENSIDAD", 0)));
                 if (Param12 != null) Param12.setText(String.valueOf(tiempo2 > 0 ? tiempo2 : data.getIntExtra("TIEMPO", 0)));
                 if (Param13 != null) Param13.setText(String.valueOf(tiempo2 > 0 ? tiempo2 : data.getIntExtra("TIEMPO", 0)));
-                if (nombreDispositivoPac2 != null) nombreDispositivoPac2.setText(nombrePaciente2);
+                if (nombreDispositivoPac2 != null){
+                    nombreDispositivoPac2.setText(nombrePaciente2);
+                    nombreDispositivoPac2.setVisibility(View.VISIBLE);
+                }
             }
 
             if (opcionNuevo > 0) {
