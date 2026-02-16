@@ -4,9 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputFilter;
 import android.text.InputType;
-import android.text.Spanned;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -15,6 +13,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -46,14 +45,16 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     private Button btnBuscar;
 
     // Formulario editable
-    private RelativeLayout grupoEditable;
+    private ScrollView pacienteScrollView;
     private EditText editDNI, editNombre, editApellido1, editApellido2;
     private EditText editPatologia, editMedicacion, editCIC;
     private EditText editIntensidad, editTiempo;
     private EditText editIntensidad2, editTiempo2;
+    private View tilIntensidad2, tilTiempo2;
     private Button btnGuardar;
 
     // Detalles paciente
+    private ScrollView detallesScrollView;
     private RelativeLayout detallesPacienteLayout;
     private TextView tvDNI, tvCIC, tvNombreCompleto, tvPatologia, tvMedicacion;
     private TextView tvIntensidad, tvTiempo, tvIntensidad2, tvTiempo2;
@@ -99,16 +100,17 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         nomSelPaciente = findViewById(R.id.nombrePaciente);
         verLista = findViewById(R.id.listaLayout);
         vieLista = findViewById(R.id.listaPacientes);
-        grupoEditable = findViewById(R.id.grupoCrearPac);
+        pacienteScrollView = findViewById(R.id.PacienteScrollView);
         crearPac = findViewById(R.id.crear_paciente);
+        detallesScrollView = findViewById(R.id.detallesScrollView);
 
         // Configurar botones principales
         verList = findViewById(R.id.boton_verLista);
         verList.setOnClickListener(v -> {
             actualizarListaPacientes();
-            detallesPacienteLayout.setVisibility(View.GONE);
+            detallesScrollView.setVisibility(View.GONE);
             verLista.setVisibility(View.VISIBLE);
-            grupoEditable.setVisibility(View.GONE);
+            pacienteScrollView.setVisibility(View.GONE);
         });
 
         crearPac.setOnClickListener(v -> {
@@ -116,9 +118,9 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             editando = false;
             idEditando = -1;
             nomSelPaciente.setText("");
-            detallesPacienteLayout.setVisibility(View.GONE);
+            detallesScrollView.setVisibility(View.GONE);
             verLista.setVisibility(View.GONE);
-            grupoEditable.setVisibility(View.VISIBLE);
+            pacienteScrollView.setVisibility(View.VISIBLE);
             configurarVisibilidadDisp2Editable();
         });
 
@@ -173,9 +175,9 @@ public class VentanaPacienteActivity extends AppCompatActivity {
 
             if (pacienteSeleccionadoId != -1) {
                 cargarDetallesPaciente(pacienteSeleccionadoId);
-                detallesPacienteLayout.setVisibility(View.VISIBLE);
+                detallesScrollView.setVisibility(View.VISIBLE);
                 verLista.setVisibility(View.GONE);
-                grupoEditable.setVisibility(View.GONE);
+                pacienteScrollView.setVisibility(View.GONE);
             }
         });
 
@@ -199,6 +201,8 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         editTiempo = findViewById(R.id.editTiempo);
         editIntensidad2 = findViewById(R.id.editIntensidad2);
         editTiempo2 = findViewById(R.id.editTiempo2);
+        tilIntensidad2 = findViewById(R.id.tilIntensidad2);
+        tilTiempo2 = findViewById(R.id.tilTiempo2);
         btnGuardar = findViewById(R.id.btnGuardar);
 
         btnGuardar.setOnClickListener(v -> guardarPaciente());
@@ -231,7 +235,6 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         PacienteController.Resultado resultado;
 
         if (editando) {
-            // Actualizar
             if (optionDis == 3) {
                 resultado = pacienteController.actualizarPaciente2disp(idEditando, dni, nombre,
                         apellido1, apellido2, patologia, medicacion,
@@ -242,7 +245,6 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                         intensidadStr, tiempoStr, cic);
             }
         } else {
-            // Crear nuevo
             if (optionDis == 3) {
                 resultado = pacienteController.guardarPaciente2disp(dni, nombre, apellido1,
                         apellido2, patologia, medicacion,
@@ -261,7 +263,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             editando = false;
             idEditando = -1;
             actualizarListaPacientes();
-            grupoEditable.setVisibility(View.INVISIBLE);
+            pacienteScrollView.setVisibility(View.GONE);
             verLista.setVisibility(View.VISIBLE);
         }
     }
@@ -329,9 +331,9 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 Paciente pac = pacienteController.obtenerPacientePorId(pacienteSeleccionadoId, optionDis);
                 if (pac == null) return;
 
-                detallesPacienteLayout.setVisibility(View.GONE);
+                detallesScrollView.setVisibility(View.GONE);
                 verLista.setVisibility(View.GONE);
-                grupoEditable.setVisibility(View.VISIBLE);
+                pacienteScrollView.setVisibility(View.VISIBLE);
 
                 editando = true;
                 idEditando = pac.getID();
@@ -375,9 +377,9 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             if (resultado.exito) {
                 actualizarListaPacientes();
                 nomSelPaciente.setText("");
-                detallesPacienteLayout.setVisibility(View.GONE);
+                detallesScrollView.setVisibility(View.GONE);
                 verLista.setVisibility(View.VISIBLE);
-                grupoEditable.setVisibility(View.GONE);
+                pacienteScrollView.setVisibility(View.GONE);
             }
         });
     }
@@ -457,7 +459,6 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     private void procesarExtras() {
         Bundle extras = getIntent().getExtras();
         boolean isVista = false;
-        boolean isCrear = false;
 
         if (extras != null) {
             nomPacienteDado = extras.getString("NOMBRE_PACIENTE", "");
@@ -465,7 +466,6 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             optionDis = extras.getInt("DISPOSITIVO_ELEC", 0);
             DNI_otroDisp = extras.getString("DNI_PAC_OTRODISP", "");
             isVista = extras.getBoolean("verSoloLista", false);
-            isCrear = extras.getBoolean("CREAR_PACIENTE", false);
         }
 
         if (nomPacienteDado != null && !nomPacienteDado.isEmpty()
@@ -483,28 +483,23 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 nomSelPaciente.setText(nombrePacDado);
                 pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(posicionDado);
                 cargarDetallesPaciente(pacienteSeleccionadoId);
-                detallesPacienteLayout.setVisibility(View.VISIBLE);
+                detallesScrollView.setVisibility(View.VISIBLE);
                 verLista.setVisibility(View.GONE);
-                grupoEditable.setVisibility(View.GONE);
+                pacienteScrollView.setVisibility(View.GONE);
             }
         } else {
-            detallesPacienteLayout.setVisibility(View.GONE);
+            detallesScrollView.setVisibility(View.GONE);
             verLista.setVisibility(View.GONE);
-            grupoEditable.setVisibility(View.GONE);
+            pacienteScrollView.setVisibility(View.GONE);
             nomSelPaciente.setText("No hay Paciente Seleccionado");
         }
 
         if (isVista) {
             btnIniciarTratamiento.setVisibility(View.GONE);
-            detallesPacienteLayout.setVisibility(View.GONE);
+            detallesScrollView.setVisibility(View.GONE);
             verLista.setVisibility(View.VISIBLE);
-            grupoEditable.setVisibility(View.GONE);
-        } else if(isCrear){
-            btnIniciarTratamiento.setVisibility(View.GONE);
-            detallesPacienteLayout.setVisibility(View.GONE);
-            verLista.setVisibility(View.GONE);
-            grupoEditable.setVisibility(View.VISIBLE);
-        }else {
+            pacienteScrollView.setVisibility(View.GONE);
+        } else {
             btnIniciarTratamiento.setVisibility(View.VISIBLE);
         }
     }
@@ -515,9 +510,9 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 .setMessage("Hemos descubierto que este Paciente ya esta Inicializado en el otro Dispositivo.\n" +
                         "*Los cambios que hayas hecho en el otro dispositivo se reiniciaran al conectar ambos dispositivos")
                 .setPositiveButton("Elegir otro Paciente", (dialog, which) -> {
-                    detallesPacienteLayout.setVisibility(View.GONE);
+                    detallesScrollView.setVisibility(View.GONE);
                     verLista.setVisibility(View.VISIBLE);
-                    grupoEditable.setVisibility(View.GONE);
+                    pacienteScrollView.setVisibility(View.GONE);
                     nomSelPaciente.setText("");
                     dialog.dismiss();
                 })
@@ -549,11 +544,11 @@ public class VentanaPacienteActivity extends AppCompatActivity {
 
     private void configurarVisibilidadDisp2Editable() {
         if (optionDis == 3) {
-            editIntensidad2.setVisibility(View.VISIBLE);
-            editTiempo2.setVisibility(View.VISIBLE);
+            tilIntensidad2.setVisibility(View.VISIBLE);
+            tilTiempo2.setVisibility(View.VISIBLE);
         } else {
-            editIntensidad2.setVisibility(View.GONE);
-            editTiempo2.setVisibility(View.GONE);
+            tilIntensidad2.setVisibility(View.GONE);
+            tilTiempo2.setVisibility(View.GONE);
         }
     }
 
