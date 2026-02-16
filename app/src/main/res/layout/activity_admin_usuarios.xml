@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
     android:fillViewport="true">
 
     <LinearLayout
@@ -15,41 +16,45 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="⚙️ Administración de Usuarios"
-            android:textSize="28sp"
+            android:text="Administración de Usuarios"
+            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+            android:textColor="?attr/colorPrimary"
             android:textStyle="bold"
-            android:textColor="#1976D2"
             android:gravity="center"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="4dp" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Crear nuevo usuario en el sistema"
-            android:textSize="14sp"
-            android:textColor="#666"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:gravity="center"
-            android:layout_marginBottom="24dp" />
+            android:layout_marginBottom="20dp" />
 
         <!-- Card para crear usuario -->
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp">
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp"
+            style="@style/Widget.Trivium.CardView.Outlined">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="20dp">
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="➕ Crear Nuevo Usuario"
-                    android:textSize="20sp"
+                    android:text="Crear Nuevo Usuario"
+                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                    android:textColor="?attr/colorOnSurface"
                     android:textStyle="bold"
                     android:layout_marginBottom="16dp" />
 
@@ -59,7 +64,12 @@
                     android:layout_height="wrap_content"
                     android:hint="Nombre de usuario"
                     app:boxBackgroundMode="outline"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusBottomEnd="12dp"
                     app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                    app:startIconTint="?attr/colorPrimary"
                     app:helperText="Sin espacios, ej: doctor.garcia">
 
                     <com.google.android.material.textfield.TextInputEditText
@@ -77,8 +87,13 @@
                     android:layout_marginTop="12dp"
                     android:hint="Contraseña"
                     app:boxBackgroundMode="outline"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusBottomEnd="12dp"
                     app:endIconMode="password_toggle"
                     app:startIconDrawable="@android:drawable/ic_lock_lock"
+                    app:startIconTint="?attr/colorPrimary"
                     app:helperText="Mínimo 6 caracteres">
 
                     <com.google.android.material.textfield.TextInputEditText
@@ -96,7 +111,12 @@
                     android:layout_marginTop="12dp"
                     android:hint="Nombre completo"
                     app:boxBackgroundMode="outline"
-                    app:startIconDrawable="@android:drawable/ic_menu_edit">
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:startIconDrawable="@android:drawable/ic_menu_edit"
+                    app:startIconTint="?attr/colorPrimary">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etNombreCompleto"
@@ -112,7 +132,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:text="Rol del usuario:"
-                    android:textSize="16sp"
+                    android:textAppearance="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorOnSurface"
                     android:textStyle="bold" />
 
                 <Spinner
@@ -124,45 +145,45 @@
                     android:padding="12dp" />
 
                 <!-- Botón crear -->
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnCrearUsuario"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
                     android:layout_marginTop="20dp"
-                    android:backgroundTint="#4CAF50"
-                    android:text="✓ Crear Usuario"
-                    android:textColor="@android:color/white"
+                    android:text="Crear Usuario"
                     android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    app:cornerRadius="12dp"
+                    style="@style/Widget.Trivium.Button.Success" />
 
             </LinearLayout>
 
-        </androidx.cardview.widget.CardView>
+        </com.google.android.material.card.MaterialCardView>
 
-        <!-- Usuarios existentes -->
+        <!-- Sección usuarios existentes -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="👥 Usuarios Existentes"
-            android:textSize="20sp"
+            android:text="Usuarios Existentes"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textColor="?attr/colorOnSurface"
             android:textStyle="bold"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Toca un usuario para ver opciones"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:layout_marginBottom="12dp" />
 
-        <TextView
+        <!-- RecyclerView reemplaza al ListView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewUsuarios"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="✓ = Activo  |  ✗ = Inactivo"
-            android:textSize="12sp"
-            android:textColor="#666"
-            android:layout_marginBottom="8dp" />
-
-        <!-- Lista de usuarios -->
-        <ListView
-            android:id="@+id/listViewUsuarios"
-            android:layout_width="match_parent"
-            android:layout_height="300dp"
-            android:divider="#E0E0E0"
-            android:dividerHeight="1dp" />
+            android:nestedScrollingEnabled="false" />
 
     </LinearLayout>
 

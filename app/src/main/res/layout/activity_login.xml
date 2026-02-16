@@ -1,92 +1,130 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".LoginActivity"
-    android:background="#F5F5F5"
-    android:padding="24dp">
-    <!-- Logo o título -->
-    <TextView
-        android:id="@+id/tvAppTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="80dp"
-        android:text="Bienvenido"
-        android:textColor="#1976D2"
-        android:textSize="32sp"
-        android:textStyle="bold" />
+    android:fillViewport="true"
+    android:background="?attr/colorSurface"
+    tools:context=".view.LoginActivity">
 
-    <!-- Contenedor de campos de login -->
     <LinearLayout
-        android:id="@+id/loginContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:background="@android:color/white"
-        android:elevation="4dp"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- Campo de usuario -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
+        <!-- Logo -->
+        <ImageView
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_marginBottom="12dp"
+            android:src="@drawable/logo2"
+            android:contentDescription="@string/app_name" />
+
+        <!-- Título -->
+        <TextView
+            android:id="@+id/tvAppTitle"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:hint="Usuario"
-            app:boxBackgroundMode="outline"
-            app:startIconDrawable="@android:drawable/ic_menu_myplaces">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etUsername"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text"
-                android:maxLines="1" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Campo de contraseña -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:hint="Contraseña"
-            app:boxBackgroundMode="outline"
-            app:endIconMode="password_toggle"
-            app:startIconDrawable="@android:drawable/ic_lock_lock">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etPassword"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textPassword"
-                android:maxLines="1" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Botón de login -->
-        <Button
-            android:id="@+id/btnLogin"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="24dp"
-            android:backgroundTint="#1976D2"
-            android:text="Iniciar Sesión"
-            android:textColor="@android:color/white"
-            android:textSize="16sp"
+            android:layout_marginBottom="32dp"
+            android:text="Bienvenido"
+            android:textAppearance="?attr/textAppearanceHeadlineLarge"
+            android:textColor="?attr/colorPrimary"
             android:textStyle="bold" />
 
-        <!-- Mensaje de error -->
-        <TextView
-            android:id="@+id/tvError"
+        <!-- Card contenedor -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/loginContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center"
-            android:textColor="#D32F2F"
-            android:textSize="14sp"
-            android:visibility="gone" />
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp"
+            style="@style/Widget.Trivium.CardView.Outlined">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <!-- Campo de usuario -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Usuario"
+                    app:boxBackgroundMode="outline"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                    app:startIconTint="?attr/colorPrimary">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etUsername"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:maxLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Campo de contraseña -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:hint="Contraseña"
+                    app:boxBackgroundMode="outline"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:endIconMode="password_toggle"
+                    app:startIconDrawable="@android:drawable/ic_lock_lock"
+                    app:startIconTint="?attr/colorPrimary">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etPassword"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textPassword"
+                        android:maxLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Botón de login -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLogin"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="24dp"
+                    android:text="Iniciar Sesión"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="12dp"
+                    style="@style/Widget.Trivium.Button" />
+
+                <!-- Mensaje de error -->
+                <TextView
+                    android:id="@+id/tvError"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:background="@color/md_theme_errorContainer"
+                    android:gravity="center"
+                    android:padding="10dp"
+                    android:textColor="?attr/colorError"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 
-</RelativeLayout>
+</ScrollView>

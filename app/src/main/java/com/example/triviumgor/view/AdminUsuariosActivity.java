@@ -2,23 +2,20 @@ package com.example.triviumgor.view;
 
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.triviumgor.R;
 import com.example.triviumgor.controller.UsuarioController;
-import com.example.triviumgor.database.PacienteDBHelper;
 import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.Usuario;
 import com.google.android.material.textfield.TextInputEditText;
@@ -31,7 +28,9 @@ public class AdminUsuariosActivity extends AppCompatActivity {
     private TextInputEditText etNewUsername, etNewPassword, etNombreCompleto;
     private Spinner spinnerRol;
     private Button btnCrearUsuario;
-    private ListView listViewUsuarios;
+    private RecyclerView recyclerViewUsuarios;
+    private UsuarioAdapter usuarioAdapter;
+
     // Controller y datos
     private UsuarioController usuarioController;
     private PacienteDataManager dataManager;
@@ -52,23 +51,23 @@ public class AdminUsuariosActivity extends AppCompatActivity {
 
         // Inicializar Controller
         usuarioController = new UsuarioController(this, dataManager);
-        
-        // 🔒 VERIFICACIÓN DE SEGURIDAD - SOLO ADMIN PUEDE ACCEDER
+
+        // VERIFICACIÓN DE SEGURIDAD - SOLO ADMIN PUEDE ACCEDER
         SharedPreferences prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
         String rolUsuario = prefs.getString("rol", "");
-        
+
         if (!usuarioController.esAdmin()) {
-            Toast.makeText(this, "⛔ Acceso denegado. Solo administradores.",
+            Toast.makeText(this, "Acceso denegado. Solo administradores.",
                     Toast.LENGTH_LONG).show();
             finish();
             return;
         }
-        
+
         setContentView(R.layout.activity_admin_usuarios);
-        
+
         // Configurar título
         setTitle("Administrar Usuarios");
-        
+
         // Inicializar lista de usuarios
         usuariosList = new ArrayList<>();
 
@@ -78,13 +77,20 @@ public class AdminUsuariosActivity extends AppCompatActivity {
         etNombreCompleto = findViewById(R.id.etNombreCompleto);
         spinnerRol = findViewById(R.id.spinnerRol);
         btnCrearUsuario = findViewById(R.id.btnCrearUsuario);
-        listViewUsuarios = findViewById(R.id.listViewUsuarios);
+        recyclerViewUsuarios = findViewById(R.id.recyclerViewUsuarios);
 
-        // Configurar spinner - Ahora usa métodos del controller
+        // Configurar RecyclerView
+        recyclerViewUsuarios.setLayoutManager(new LinearLayoutManager(this));
+        usuarioAdapter = new UsuarioAdapter(usuariosList, new UsuarioAdapter.OnUsuarioClickListener() {
+            @Override
+            public void onUsuarioClick(int position) {
+                mostrarOpcionesUsuario(position);
+            }
+        });
+        recyclerViewUsuarios.setAdapter(usuarioAdapter);
+
+        // Configurar spinner
         configurarSpinnerRoles();
-
-
-
 
         // Cargar usuarios existentes
         cargarUsuarios();
@@ -96,21 +102,12 @@ public class AdminUsuariosActivity extends AppCompatActivity {
                 crearNuevoUsuario();
             }
         });
-        
-        // Configurar click en lista para opciones (activar/desactivar, cambiar contraseña)
-        listViewUsuarios.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                mostrarOpcionesUsuario(position);
-            }
-        });
     }
 
     /**
      * Configurar spinner usando métodos estáticos del controller
      */
     private void configurarSpinnerRoles() {
-        // ✨ Ahora usa el método del controller
         String[] roles = UsuarioController.Rol.getTextosTodos();
 
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
@@ -128,14 +125,12 @@ public class AdminUsuariosActivity extends AppCompatActivity {
         String rolTexto = spinnerRol.getSelectedItem().toString();
         UsuarioController.Rol rol = UsuarioController.Rol.fromTextoFormateado(rolTexto);
 
-        // ===== VALIDACIONES =====
-
-        // ✨ TODAS las validaciones las hace el controller
+        // TODAS las validaciones las hace el controller
         UsuarioController.ResultadoOperacion resultado =
                 usuarioController.crearUsuario(username, password, nombreCompleto, rol);
 
         if (resultado.exitoso) {
-            Toast.makeText(this, "✅ " + resultado.mensaje, Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, resultado.mensaje, Toast.LENGTH_SHORT).show();
 
             // Limpiar formulario
             etNewUsername.setText("");
@@ -145,35 +140,17 @@ public class AdminUsuariosActivity extends AppCompatActivity {
 
             // Recargar lista
             cargarUsuarios();
-            listViewUsuarios.smoothScrollToPosition(usuariosList.size() - 1);
+            recyclerViewUsuarios.smoothScrollToPosition(
+                    usuarioAdapter.getItemCount() > 0 ? usuarioAdapter.getItemCount() - 1 : 0);
         } else {
-            Toast.makeText(this, "❌ " + resultado.mensaje, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, resultado.mensaje, Toast.LENGTH_LONG).show();
         }
     }
 
     private void cargarUsuarios() {
-        List<String> listaUsuarios = new ArrayList<>();
-
-        // ✨ Obtener usuarios del controller
+        // Obtener usuarios del controller
         usuariosList = usuarioController.obtenerTodosLosUsuarios();
-
-        for (Usuario usuario : usuariosList) {
-            String estado = (usuario.getActivo() == 1) ? "✓" : "✗";
-            String emoji = UsuarioController.Rol.fromCodigo(usuario.getRol()).getEmoji(); //fromCodigo obtiene el Rol de la clase que hay en UsuarioController y el getEmoji coje el emoji que da la clase
-
-            String texto = estado + " " + emoji + " " + usuario.getUsername() + "\n" +
-                    "   " + usuario.getNombreCompleto() + " [" + usuario.getRol() + "]";
-
-            listaUsuarios.add(texto);
-        }
-
-        if (listaUsuarios.isEmpty()) {
-            listaUsuarios.add("No hay usuarios registrados");
-        }
-
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_list_item_1, listaUsuarios);
-        listViewUsuarios.setAdapter(adapter);
+        usuarioAdapter.actualizarLista(usuariosList);
     }
 
 
@@ -182,75 +159,68 @@ public class AdminUsuariosActivity extends AppCompatActivity {
      */
     private void mostrarOpcionesUsuario(final int position) {
         if (position >= usuariosList.size()) return;
-        
+
         final Usuario usuario = usuariosList.get(position);
         String usuarioActual = usuarioController.getUsernameActual();
-        
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Opciones para: " + usuario.getUsername());
-        
+
         String[] opciones;
         if (usuario.getUsername().equals(usuarioActual)) {
-            // El usuario actual solo puede cambiar su contraseña
             opciones = new String[]{
-                "🔑 Cambiar mi contraseña",
-                "❌ Cancelar"
+                    "Cambiar mi contraseña",
+                    "Cancelar"
             };
         } else {
-            // Otros usuarios pueden ser activados/desactivados
             opciones = new String[]{
-                "🔑 Cambiar contraseña",
-                "🔄 Activar/Desactivar usuario",
-                "❌ Cancelar"
+                    "Cambiar contraseña",
+                    "Activar/Desactivar usuario",
+                    "Cancelar"
             };
         }
-        
+
         builder.setItems(opciones, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 if (which == 0) {
-                    // Cambiar contraseña
                     mostrarDialogoCambiarPassword(usuario);
                 } else if (which == 1 && !usuario.getUsername().equals(usuarioActual)) {
-                    // Activar/Desactivar (solo si no es el usuario actual)
                     toggleEstadoUsuario(usuario);
                 }
             }
         });
-        
+
         builder.show();
     }
-    
+
     private void mostrarDialogoCambiarPassword(final Usuario usuario) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Cambiar contraseña de " + usuario.getUsername());
-        
-        // Crear EditText para la nueva contraseña
+
         final TextInputEditText etNewPass = new TextInputEditText(this);
         etNewPass.setHint("Nueva contraseña (mín. 6 caracteres)");
-        etNewPass.setInputType(android.text.InputType.TYPE_CLASS_TEXT | 
-                               android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        
+        etNewPass.setInputType(android.text.InputType.TYPE_CLASS_TEXT |
+                android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+
         builder.setView(etNewPass);
-        
-        builder.setPositiveButton("✓ Cambiar", new DialogInterface.OnClickListener() {
+
+        builder.setPositiveButton("Cambiar", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 String newPassword = etNewPass.getText().toString().trim();
 
-                // ✨ Controller valida y cambia
                 UsuarioController.ResultadoOperacion resultado =
                         usuarioController.cambiarPassword(usuario.getUsername(), newPassword);
 
-                String mensaje = (resultado.exitoso ? "✅ " : "❌ ") + resultado.mensaje;
-                Toast.makeText(AdminUsuariosActivity.this, mensaje, Toast.LENGTH_SHORT).show();
+                Toast.makeText(AdminUsuariosActivity.this, resultado.mensaje, Toast.LENGTH_SHORT).show();
             }
         });
-        
+
         builder.setNegativeButton("Cancelar", null);
         builder.show();
     }
-    
+
     private void toggleEstadoUsuario(final Usuario usuario) {
 
         final boolean nuevoEstado = (usuario.getActivo() == 0);
@@ -262,18 +232,17 @@ public class AdminUsuariosActivity extends AppCompatActivity {
                 .setPositiveButton("Sí", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        // ✨ Controller valida y cambia estado
                         UsuarioController.ResultadoOperacion resultado =
                                 usuarioController.toggleEstadoUsuario(usuario.getUsername(), nuevoEstado);
 
                         if (resultado.exitoso) {
                             Toast.makeText(AdminUsuariosActivity.this,
-                                    "✅ " + resultado.mensaje,
+                                    resultado.mensaje,
                                     Toast.LENGTH_SHORT).show();
                             cargarUsuarios();
                         } else {
                             Toast.makeText(AdminUsuariosActivity.this,
-                                    "❌ " + resultado.mensaje,
+                                    resultado.mensaje,
                                     Toast.LENGTH_SHORT).show();
                         }
                     }
@@ -289,10 +258,9 @@ public class AdminUsuariosActivity extends AppCompatActivity {
             dataManager.close();
         }
     }
-    
+
     @Override
     public boolean onSupportNavigateUp() {
-        // Permitir volver atrás con el botón de la barra
         finish();
         return true;
     }

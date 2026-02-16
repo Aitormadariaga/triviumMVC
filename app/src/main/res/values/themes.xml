@@ -1,22 +1,119 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.TriviumMVC" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/my_light_primary</item>
-        <item name="colorSecondary">@color/my_light_secondary</item>
 
-        <item name="android:windowBackground">@color/background_color</item>
-        <item name="android:textColor">@color/text_color</item>
-        <item name="android:editTextColor">@color/edit_text_foreground</item>
-        <item name="android:textColorHint">@color/edit_text_foreground</item>
-        <item name="android:editTextStyle">@style/AppEditTextStyle</item>
+    <!-- ============================================= -->
+    <!--  Tema base — Material 3 DayNight               -->
+    <!-- ============================================= -->
+    <style name="Base.Theme.TriviumMVC" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <!-- Primary -->
+        <item name="colorPrimary">@color/md_theme_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/md_theme_onPrimaryContainer</item>
+        <item name="colorPrimaryInverse">@color/md_theme_inversePrimary</item>
+
+        <!-- Secondary -->
+        <item name="colorSecondary">@color/md_theme_secondary</item>
+        <item name="colorOnSecondary">@color/md_theme_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/md_theme_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/md_theme_onSecondaryContainer</item>
+
+        <!-- Tertiary -->
+        <item name="colorTertiary">@color/md_theme_tertiary</item>
+        <item name="colorOnTertiary">@color/md_theme_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/md_theme_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/md_theme_onTertiaryContainer</item>
+
+        <!-- Error -->
+        <item name="colorError">@color/md_theme_error</item>
+        <item name="colorOnError">@color/md_theme_onError</item>
+        <item name="colorErrorContainer">@color/md_theme_errorContainer</item>
+        <item name="colorOnErrorContainer">@color/md_theme_onErrorContainer</item>
+
+        <!-- Background & Surface -->
+        <item name="android:colorBackground">@color/md_theme_background</item>
+        <item name="colorOnBackground">@color/md_theme_onBackground</item>
+        <item name="colorSurface">@color/md_theme_surface</item>
+        <item name="colorOnSurface">@color/md_theme_onSurface</item>
+        <item name="colorSurfaceVariant">@color/md_theme_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/md_theme_onSurfaceVariant</item>
+        <item name="colorSurfaceInverse">@color/md_theme_inverseSurface</item>
+        <item name="colorOnSurfaceInverse">@color/md_theme_inverseOnSurface</item>
+
+        <!-- Outline -->
+        <item name="colorOutline">@color/md_theme_outline</item>
+        <item name="colorOutlineVariant">@color/md_theme_outlineVariant</item>
+
+        <!-- Texto global -->
+        <item name="android:textColor">@color/md_theme_onBackground</item>
+        <item name="android:textColorHint">@color/md_theme_onSurfaceVariant</item>
+
+        <!-- Estilo por defecto de TextInputLayout (Outlined M3) -->
+        <item name="textInputStyle">@style/Widget.Trivium.TextInputLayout</item>
+
+        <!-- Estilo por defecto de botones M3 -->
+        <item name="materialButtonStyle">@style/Widget.Trivium.Button</item>
+
     </style>
 
+    <!-- Tema final que aplica la app -->
     <style name="Theme.TriviumMVC" parent="Base.Theme.TriviumMVC" />
 
-    <!-- Estilo personalizado para EditText -->
-    <style name="AppEditTextStyle" parent="Widget.AppCompat.EditText">
-        <item name="android:textColor">@color/edit_text_foreground</item>
-        <item name="android:textColorHint">@color/edit_text_foreground</item>
-        <item name="android:backgroundTint">@color/edit_text_background</item>
+    <!-- ============================================= -->
+    <!--  Widget overrides                              -->
+    <!-- ============================================= -->
+
+    <!-- TextInputLayout por defecto: outlined con esquinas M3 -->
+    <style name="Widget.Trivium.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/md_theme_primary</item>
+        <item name="hintTextColor">@color/md_theme_primary</item>
     </style>
+
+    <!-- Botón por defecto: Material 3 Filled -->
+    <style name="Widget.Trivium.Button" parent="Widget.Material3.Button">
+        <!-- hereda colores de tema automáticamente -->
+    </style>
+
+    <!-- Botón tonal (secundario) -->
+    <style name="Widget.Trivium.Button.Tonal" parent="Widget.Material3.Button.TonalButton" />
+
+    <!-- Botón outlined -->
+    <style name="Widget.Trivium.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton" />
+
+    <!-- Botón de texto -->
+    <style name="Widget.Trivium.Button.Text" parent="Widget.Material3.Button.TextButton" />
+
+    <!-- Botón de error (borrar, etc.) -->
+    <style name="Widget.Trivium.Button.Error" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/md_theme_error</item>
+        <item name="android:textColor">@color/md_theme_error</item>
+        <item name="iconTint">@color/md_theme_error</item>
+    </style>
+
+    <!-- Botón success (crear usuario, etc.) -->
+    <style name="Widget.Trivium.Button.Success" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/color_success</item>
+        <item name="android:textColor">@color/color_onSuccess</item>
+    </style>
+
+    <!-- Card por defecto -->
+    <style name="Widget.Trivium.CardView" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">2dp</item>
+    </style>
+
+    <!-- Card outlined (más sutil) -->
+    <style name="Widget.Trivium.CardView.Outlined" parent="Widget.Material3.CardView.Outlined">
+        <item name="cardCornerRadius">12dp</item>
+    </style>
+
+    <!-- ============================================= -->
+    <!--  Estilo heredado para EditText (compat)        -->
+    <!-- ============================================= -->
+    <style name="AppEditTextStyle" parent="Widget.AppCompat.EditText">
+        <item name="android:textColor">@color/md_theme_onSurface</item>
+        <item name="android:textColorHint">@color/md_theme_onSurfaceVariant</item>
+        <item name="android:backgroundTint">@color/md_theme_outline</item>
+    </style>
+
 </resources>

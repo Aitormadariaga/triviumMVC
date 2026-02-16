@@ -1,19 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Colores Material 3 para modo oscuro -->
-    <color name="my_light_primary">#D0BCFF</color>
-    <color name="my_light_secondary">#CCC2DC</color>
-    <color name="my_light_tertiary">#EFB8C8</color>
 
-    <!-- Colores específicos para elementos UI en modo oscuro -->
-    <color name="background_color">#1C1B1F</color>
-    <color name="text_color">#FFFFFF</color>
-    <color name="edit_text_background">#2E2D31</color>
-    <color name="edit_text_foreground">#FFFFFF</color>
+    <!-- ============================================= -->
+    <!--  Material 3 — Paleta DARK (Azul Médico)       -->
+    <!-- ============================================= -->
 
-    <!-- Colores que usas en la app (ajustados para modo oscuro) -->
-    <color name="yellow">#FFFFB84C</color>
-    <color name="green">#FF80E080</color>
-    <color name="blue">#FF8080FF</color>
-    <color name="red">#FFFF8080</color>
+    <!-- Primary -->
+    <color name="md_theme_primary">#A0CAFD</color>
+    <color name="md_theme_onPrimary">#003258</color>
+    <color name="md_theme_primaryContainer">#00497D</color>
+    <color name="md_theme_onPrimaryContainer">#D1E4FF</color>
+    <color name="md_theme_inversePrimary">#1565C0</color>
+
+    <!-- Secondary -->
+    <color name="md_theme_secondary">#BCC7DB</color>
+    <color name="md_theme_onSecondary">#263141</color>
+    <color name="md_theme_secondaryContainer">#3C4758</color>
+    <color name="md_theme_onSecondaryContainer">#D8E3F8</color>
+
+    <!-- Tertiary -->
+    <color name="md_theme_tertiary">#D6BEE4</color>
+    <color name="md_theme_onTertiary">#3B2948</color>
+    <color name="md_theme_tertiaryContainer">#533F5F</color>
+    <color name="md_theme_onTertiaryContainer">#F2DAFF</color>
+
+    <!-- Error -->
+    <color name="md_theme_error">#FFB4AB</color>
+    <color name="md_theme_onError">#690005</color>
+    <color name="md_theme_errorContainer">#93000A</color>
+    <color name="md_theme_onErrorContainer">#FFDAD6</color>
+
+    <!-- Background & Surface -->
+    <color name="md_theme_background">#1A1C1E</color>
+    <color name="md_theme_onBackground">#E2E2E6</color>
+    <color name="md_theme_surface">#1A1C1E</color>
+    <color name="md_theme_onSurface">#E2E2E6</color>
+    <color name="md_theme_surfaceVariant">#43474E</color>
+    <color name="md_theme_onSurfaceVariant">#C3C6CF</color>
+
+    <!-- Outline -->
+    <color name="md_theme_outline">#8D9199</color>
+    <color name="md_theme_outlineVariant">#43474E</color>
+
+    <!-- Inverse -->
+    <color name="md_theme_inverseSurface">#E2E2E6</color>
+    <color name="md_theme_inverseOnSurface">#2F3033</color>
+
+    <!-- ============================================= -->
+    <!--  Colores semánticos personalizados             -->
+    <!-- ============================================= -->
+    <color name="color_success">#81C784</color>
+    <color name="color_onSuccess">#003300</color>
+    <color name="color_successContainer">#1B5E20</color>
+    <color name="color_warning">#FFD54F</color>
+    <color name="color_warningContainer">#5D4037</color>
+
+    <!-- ============================================= -->
+    <!--  Aliases de compatibilidad                     -->
+    <!-- ============================================= -->
+    <color name="my_light_primary">@color/md_theme_primary</color>
+    <color name="my_light_secondary">@color/md_theme_secondary</color>
+    <color name="my_light_tertiary">@color/md_theme_tertiary</color>
+    <color name="background_color">@color/md_theme_background</color>
+    <color name="text_color">@color/md_theme_onBackground</color>
+    <color name="edit_text_background">@color/md_theme_surfaceVariant</color>
+    <color name="edit_text_foreground">@color/md_theme_onSurface</color>
+
+    <!-- Colores básicos usados en la app (ajustados dark) -->
+    <color name="yellow">@color/color_warning</color>
+    <color name="green">@color/color_success</color>
+    <color name="blue">@color/md_theme_primary</color>
+    <color name="red">@color/md_theme_error</color>
+
 </resources>
