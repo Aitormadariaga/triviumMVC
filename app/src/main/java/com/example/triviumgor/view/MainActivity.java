@@ -188,7 +188,7 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        sharedPreferences = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
+        //sharedPreferences = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
 
         // Registrar receiver Bluetooth
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -772,19 +772,19 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Obtener rol del usuario
-        String rol = sharedPreferences.getString("rol", "");
+        //String rol = sharedPreferences.getString("rol", "");
 
         // ==== MENÚ COMÚN PARA TODOS ====
         menu.add(0, 10, 10, "👥 Ver Pacientes");
 
         // ==== MENÚ SOLO PARA ADMIN ====
-        if ("admin".equals(rol)) {
+        if (usuarioController.esAdmin()) {
             menu.add(0, 1, 1, "⚙️ Administrar Usuarios");
             menu.add(0, 12, 12, "📊 Reportes Completos");
         }
 
         // ==== MENÚ PARA ADMIN Y MÉDICOS ====
-        if ("admin".equals(rol) || "medico".equals(rol)) {
+        if (usuarioController.esAdminOMedico()) {
             menu.add(0, 11, 11, "➕ Nuevo Paciente");
         }
 
@@ -801,65 +801,111 @@ public class MainActivity extends AppCompatActivity
         if (itemId == 1) {
             // Administrar Usuarios (SOLO ADMIN)
             if (usuarioController.esAdmin()) {
-                Intent intent = new Intent(MainActivity.this, AdminUsuariosActivity.class);
-                startActivity(intent);
-            } else {
-                Toast.makeText(this, "⛔ Acceso denegado. Solo administradores.",
-                        Toast.LENGTH_SHORT).show();
+                return manejarAdministrarUsuarios();
             }
             return true;
 
         } else if (itemId == 2) {
-            // Cerrar Sesión
-            logout();
-            return true;
+            return manejarCerrarSesion();
 
         } else if (itemId == 10) {
             // Ver Pacientes (TODOS)
-            Toast.makeText(this, "Mostrando lista de pacientes...", Toast.LENGTH_SHORT).show();
-            // Aquí va tu código para mostrar pacientes
-            return true;
+            return manejarVerPacientes();
 
         } else if (itemId == 11) {
             // Nuevo Paciente (ADMIN y MÉDICOS)
-            if (usuarioController.esAdminOMedico()) {
-                Toast.makeText(this, "Creando nuevo paciente...", Toast.LENGTH_SHORT).show();
-                // Aquí va tu código para crear paciente
-            } else {
-                Toast.makeText(this, "⛔ Acceso denegado. Solo médicos y administradores.",
-                        Toast.LENGTH_SHORT).show();
-            }
-            return true;
+            return manejarNuevoPaciente();
 
         } else if (itemId == 12) {
-            // Reportes Completos (SOLO ADMIN)
-            if (usuarioController.esAdmin()) {
-                Toast.makeText(this, "Abriendo reportes completos...", Toast.LENGTH_SHORT).show();
-                // Aquí va tu código para reportes
-            } else {
-                Toast.makeText(this, "⛔ Acceso denegado. Solo administradores.",
-                        Toast.LENGTH_SHORT).show();
-            }
-            return true;
+            return manejarReportesCompletos();
         }
 
         return super.onOptionsItemSelected(item);
     }
+
     // ========================
-    // LOGOUT
+    // MANEJADORES DE MENÚ (Código limpio y organizado)
     // ========================
 
-    public void logout() {
+    /**
+     * Administrar Usuarios - Solo ADMIN
+     */
+    private boolean manejarAdministrarUsuarios() {
+        if (usuarioController.tienePermiso(UsuarioController.AccionPermiso.ADMINISTRAR_USUARIOS)) {
+            Intent intent = new Intent(this, AdminUsuariosActivity.class);
+            startActivity(intent);
+        } else {
+            mostrarAccesoDenegado("Solo administradores");
+        }
+        return true;
+    }
 
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putBoolean("isLoggedIn", false);
-        editor.putString("username", "");
-        editor.apply();
+    /**
+     * Cerrar Sesión - Todos
+     */
+    private boolean manejarCerrarSesion() {
+        // ✨ Una sola línea vs 5 líneas antes
         usuarioController.logout();
 
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+        return true;
+    }
+    /**
+     * Ver Pacientes - Todos
+     */
+    private boolean manejarVerPacientes() {
+        if (usuarioController.tienePermiso(UsuarioController.AccionPermiso.VER_PACIENTES)) {
+            Toast.makeText(this, "Mostrando lista de pacientes...", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, VentanaPacienteActivity.class);
+            intent.putExtra("verSoloLista", true);
+            intent.putExtra("DISPOSITIVO_ELEC", opcionDispositivoInt);
+            startActivity(intent);
+        } else {
+            mostrarAccesoDenegado("No tienes permiso");
+        }
+        return true;
+    }
+
+    /**
+     * Nuevo Paciente - ADMIN y MÉDICOS
+     */
+    private boolean manejarNuevoPaciente() {
+        if (usuarioController.tienePermiso(UsuarioController.AccionPermiso.CREAR_PACIENTE)) {
+            Toast.makeText(this, "Creando nuevo paciente...", Toast.LENGTH_SHORT).show();
+            // TODO: Abrir activity de crear paciente
+            Intent intent = new Intent(this, VentanaPacienteActivity.class);
+            intent.putExtra("CREAR_PACIENTE", true);
+            intent.putExtra("DISPOSITIVO_ELEC", opcionDispositivoInt);
+            startActivity(intent);
+        } else {
+            mostrarAccesoDenegado("Solo médicos y administradores");
+        }
+        return true;
+    }
+
+    /**
+     * Reportes Completos - Solo ADMIN
+     */
+    private boolean manejarReportesCompletos() {
+        if (usuarioController.tienePermiso(UsuarioController.AccionPermiso.VER_REPORTES_COMPLETOS)) {
+            Toast.makeText(this, "Abriendo reportes completos...", Toast.LENGTH_SHORT).show();
+            // TODO: Abrir activity de reportes
+            // Intent intent = new Intent(this, ReportesActivity.class);
+            // startActivity(intent);
+        } else {
+            mostrarAccesoDenegado("Solo administradores");
+        }
+        return true;
+    }
+
+    /**
+     * Método helper para mensajes de acceso denegado
+     */
+    private void mostrarAccesoDenegado(String razon) {
+        Toast.makeText(this, "⛔ Acceso denegado. " + razon + ".",
+                Toast.LENGTH_SHORT).show();
     }
 }
