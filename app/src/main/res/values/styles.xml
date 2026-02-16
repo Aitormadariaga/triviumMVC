@@ -1,33 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="SplashTheme" parent="Theme.AppCompat.Light.NoActionBar">
-        <item name="android:windowBackground">@color/white</item>
+    <!-- Splash (mantiene su propio tema sin ActionBar) -->
+    <style name="SplashTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/md_theme_surface</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
     </style>
 
+    <!-- Estilo legado buttonStyle (compat) -->
     <style name="buttonStyle">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">70dp</item>
         <item name="android:layout_marginLeft">5dp</item>
         <item name="android:layout_marginTop">15dp</item>
-        <item name="android:textColor">@color/text_color</item>
+        <item name="android:textColor">@color/md_theme_onSurface</item>
     </style>
 
+    <!-- Estilo legado textLayout (compat) -->
     <style name="textLayout">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textSize">20sp</item>
-        <item name="android:textColor">@color/text_color</item>
+        <item name="android:textColor">@color/md_theme_onSurface</item>
     </style>
 
-    <!-- Estilo específico para EditText -->
+    <!-- Estilo legado editTextStyle (compat) -->
     <style name="editTextStyle">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/edit_text_foreground</item>
-        <item name="android:textColorHint">@color/edit_text_foreground</item>
-        <item name="android:backgroundTint">@color/edit_text_background</item>
+        <item name="android:textColor">@color/md_theme_onSurface</item>
+        <item name="android:textColorHint">@color/md_theme_onSurfaceVariant</item>
+        <item name="android:backgroundTint">@color/md_theme_outline</item>
     </style>
+
 </resources>

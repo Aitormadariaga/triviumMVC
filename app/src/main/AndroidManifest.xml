@@ -8,7 +8,7 @@
         android:maxSdkVersion="30" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_ADMIN"
-        android:maxSdkVersion="30" />
+        android:maxSdkVersion="30" />S
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
@@ -66,7 +66,7 @@
             android:name=".view.AdminUsuariosActivity"
             android:exported="false"
             android:label="Administrar Usuarios"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".view.MainActivity" />
 
         <!-- VentanaPacienteActivity -->
         <activity
