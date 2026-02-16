@@ -66,7 +66,7 @@
             android:name=".view.AdminUsuariosActivity"
             android:exported="false"
             android:label="Administrar Usuarios"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".view.MainActivity" />
 
         <!-- VentanaPacienteActivity -->
         <activity

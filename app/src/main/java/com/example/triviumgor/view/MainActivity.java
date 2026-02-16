@@ -180,6 +180,14 @@ public class MainActivity extends AppCompatActivity
         sesionController = new SesionController(dataManager);
         usuarioController = new UsuarioController(this, dataManager);
 
+        // Verificar sesión activa
+        if (!usuarioController.haySesionActiva()) {
+            Intent intent = new Intent(this, LoginActivity.class);
+            startActivity(intent);
+            finish();
+            return;
+        }
+
         sharedPreferences = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
 
         // Registrar receiver Bluetooth
@@ -842,10 +850,12 @@ public class MainActivity extends AppCompatActivity
     // ========================
 
     public void logout() {
+
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putBoolean("isLoggedIn", false);
         editor.putString("username", "");
         editor.apply();
+        usuarioController.logout();
 
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
