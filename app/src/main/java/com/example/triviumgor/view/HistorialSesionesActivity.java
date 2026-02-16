@@ -6,13 +6,15 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.ArrayAdapter;
+import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.triviumgor.R;
 import com.example.triviumgor.controller.SesionController;
@@ -27,7 +29,7 @@ public class HistorialSesionesActivity extends AppCompatActivity {
     private TextView tvTitulo;
     private TextView tvNombrePaciente;
     private TextView tvInfoHistorial;
-    private ListView listViewSesiones;
+    private RecyclerView recyclerViewSesiones;
     private Button btnVolver;
 
     private PacienteDataManager dataManager;
@@ -46,8 +48,10 @@ public class HistorialSesionesActivity extends AppCompatActivity {
         tvTitulo = findViewById(R.id.tvTitulo);
         tvNombrePaciente = findViewById(R.id.tvNombrePaciente);
         tvInfoHistorial = findViewById(R.id.tvInfoHistorial);
-        listViewSesiones = findViewById(R.id.listViewSesiones);
+        recyclerViewSesiones = findViewById(R.id.recyclerViewSesiones);
         btnVolver = findViewById(R.id.btnVolver);
+
+        recyclerViewSesiones.setLayoutManager(new LinearLayoutManager(this));
 
         Intent intent = getIntent();
         pacienteId = intent.getIntExtra("PACIENTE_ID", -1);
@@ -72,32 +76,6 @@ public class HistorialSesionesActivity extends AppCompatActivity {
         sesionController = new SesionController(dataManager);
         cargarSesiones();
 
-        listViewSesiones.setOnItemClickListener((parent, view, position, id) -> {
-            if (!mostrandoDetalleDia) {
-                // Click en fecha → mostrar sesiones de ese día
-                if (grupos != null && position < grupos.size()) {
-                    SesionController.GrupoDia grupo = grupos.get(position);
-                    List<Sesion> sesionesDelDia = sesiones.subList(grupo.indiceInicio, grupo.indiceFin);
-                    SesionAdapter adapter = new SesionAdapter(sesionesDelDia);
-                    listViewSesiones.setAdapter(adapter);
-                    mostrandoDetalleDia = true;
-                }
-            } else {
-                // Click en sesión → mostrar detalles
-                Sesion sesion = (Sesion) listViewSesiones.getAdapter().getItem(position);
-                mostrarDetallesSesion(sesion);
-            }
-        });
-
-        listViewSesiones.setOnItemLongClickListener((adapterView, view, i, l) -> {
-            if (mostrandoDetalleDia) {
-                Sesion sesion = (Sesion) listViewSesiones.getAdapter().getItem(i);
-                dialogoBorrarSesion(sesion);
-                return true;
-            }
-            return false;
-        });
-
         btnVolver.setOnClickListener(v -> {
             if (mostrandoDetalleDia) {
                 mostrarVistaAgrupada();
@@ -121,8 +99,7 @@ public class HistorialSesionesActivity extends AppCompatActivity {
             if (sesiones.isEmpty()) {
                 ArrayList<String> mensajes = new ArrayList<>();
                 mensajes.add("No hay sesiones registradas para este paciente");
-                listViewSesiones.setAdapter(new ArrayAdapter<>(this,
-                        android.R.layout.simple_list_item_1, mensajes));
+                recyclerViewSesiones.setAdapter(new MensajeAdapter(mensajes));
                 return;
             }
 
@@ -136,9 +113,18 @@ public class HistorialSesionesActivity extends AppCompatActivity {
     private void mostrarVistaAgrupada() {
         grupos = sesionController.agruparPorDia(sesiones);
         List<String> fechas = sesionController.obtenerFechasAgrupadas(grupos);
-        listViewSesiones.setAdapter(new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_1, fechas));
+        recyclerViewSesiones.setAdapter(new FechaAdapter(fechas));
         mostrandoDetalleDia = false;
+    }
+
+    private void mostrarSesionesDelDia(int posicionGrupo) {
+        if (grupos != null && posicionGrupo < grupos.size()) {
+            SesionController.GrupoDia grupo = grupos.get(posicionGrupo);
+            List<Sesion> sesionesDelDia = new ArrayList<>(
+                    sesiones.subList(grupo.indiceInicio, grupo.indiceFin));
+            recyclerViewSesiones.setAdapter(new SesionRecyclerAdapter(sesionesDelDia));
+            mostrandoDetalleDia = true;
+        }
     }
 
     private void mostrarDetallesSesion(Sesion sesion) {
@@ -185,21 +171,88 @@ public class HistorialSesionesActivity extends AppCompatActivity {
                 .create().show();
     }
 
-    // Adaptador interno para mostrar sesiones individuales
-    private class SesionAdapter extends ArrayAdapter<Sesion> {
-        public SesionAdapter(List<Sesion> sesiones) {
-            super(HistorialSesionesActivity.this, R.layout.sesion, sesiones);
-        }
+    // =========================================================
+    //  Adapters internos
+    // =========================================================
 
+    /** Adapter para mensajes simples (ej: "No hay sesiones") */
+    private class MensajeAdapter extends RecyclerView.Adapter<MensajeAdapter.VH> {
+        private final List<String> mensajes;
+        MensajeAdapter(List<String> mensajes) { this.mensajes = mensajes; }
+
+        @NonNull @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_sesion_fecha, parent, false);
+            return new VH(v);
+        }
         @Override
-        public View getView(int position, View convertView, android.view.ViewGroup parent) {
-            if (convertView == null) {
-                convertView = getLayoutInflater().inflate(R.layout.sesion, parent, false);
+        public void onBindViewHolder(@NonNull VH h, int pos) {
+            h.tv.setText(mensajes.get(pos));
+        }
+        @Override public int getItemCount() { return mensajes.size(); }
+
+        class VH extends RecyclerView.ViewHolder {
+            TextView tv;
+            VH(View v) { super(v); tv = v.findViewById(R.id.tvFechaGrupo); }
+        }
+    }
+
+    /** Adapter para fechas agrupadas */
+    private class FechaAdapter extends RecyclerView.Adapter<FechaAdapter.VH> {
+        private final List<String> fechas;
+        FechaAdapter(List<String> fechas) { this.fechas = fechas; }
+
+        @NonNull @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_sesion_fecha, parent, false);
+            return new VH(v);
+        }
+        @Override
+        public void onBindViewHolder(@NonNull VH h, int pos) {
+            h.tv.setText(fechas.get(pos));
+            h.itemView.setOnClickListener(v -> mostrarSesionesDelDia(h.getAdapterPosition()));
+        }
+        @Override public int getItemCount() { return fechas.size(); }
+
+        class VH extends RecyclerView.ViewHolder {
+            TextView tv;
+            VH(View v) { super(v); tv = v.findViewById(R.id.tvFechaGrupo); }
+        }
+    }
+
+    /** Adapter para sesiones individuales de un día */
+    private class SesionRecyclerAdapter extends RecyclerView.Adapter<SesionRecyclerAdapter.VH> {
+        private final List<Sesion> lista;
+        SesionRecyclerAdapter(List<Sesion> lista) { this.lista = lista; }
+
+        @NonNull @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_sesion, parent, false);
+            return new VH(v);
+        }
+        @Override
+        public void onBindViewHolder(@NonNull VH h, int pos) {
+            Sesion s = lista.get(pos);
+            h.tvFecha.setText(s.getFecha());
+            h.tvInfo.setText(s.getDispositivo() + " · Intensidad: " + s.getIntensidad());
+            h.itemView.setOnClickListener(v -> mostrarDetallesSesion(s));
+            h.itemView.setOnLongClickListener(v -> {
+                dialogoBorrarSesion(s);
+                return true;
+            });
+        }
+        @Override public int getItemCount() { return lista.size(); }
+
+        class VH extends RecyclerView.ViewHolder {
+            TextView tvFecha, tvInfo;
+            VH(View v) {
+                super(v);
+                tvFecha = v.findViewById(R.id.tvFechaSesion);
+                tvInfo = v.findViewById(R.id.tvInfoSesion);
             }
-            Sesion sesion = getItem(position);
-            TextView tvFechaSesion = convertView.findViewById(R.id.tvFechaSesion);
-            tvFechaSesion.setText(sesion.getFecha());
-            return convertView;
         }
     }
 }

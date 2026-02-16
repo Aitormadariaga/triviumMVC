@@ -1,54 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    tools:context=".HistorialSesionesActivity">
+    android:orientation="vertical"
+    android:background="?attr/colorSurface"
+    tools:context=".view.HistorialSesionesActivity">
 
-    <TextView
-        android:id="@+id/tvTitulo"
+    <!-- Cabecera -->
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Histórico de Sesiones"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="16dp"/>
+        android:layout_margin="16dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="?attr/colorPrimaryContainer">
 
-    <TextView
-        android:id="@+id/tvNombrePaciente"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvTitulo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Histórico de Sesiones"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
+                android:textColor="?attr/colorOnPrimaryContainer"
+                android:textStyle="bold"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/tvNombrePaciente"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Paciente: Nombre del Paciente"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                android:textColor="?attr/colorOnPrimaryContainer"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/tvInfoHistorial"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Sesiones registradas: 0"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="?attr/colorOnPrimaryContainer"
+                android:gravity="center" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Lista -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewSesiones"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/tvTitulo"
-        android:text="Paciente: Nombre del Paciente"
-        android:textSize="18sp"
-        android:textStyle="italic"
-        android:layout_marginBottom="16dp"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="16dp"
+        android:clipToPadding="false" />
 
-    <TextView
-        android:id="@+id/tvInfoHistorial"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/tvNombrePaciente"
-        android:text="Sesiones registradas: 0"
-        android:textSize="16sp"
-        android:layout_marginBottom="8dp"/>
-
-    <ListView
-        android:id="@+id/listViewSesiones"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/tvInfoHistorial"
-        android:layout_above="@id/btnVolver"
-        android:divider="@android:color/darker_gray"
-        android:dividerHeight="1dp"/>
-
-    <Button
+    <!-- Botón volver -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnVolver"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:text="Volver" />
+        android:layout_margin="16dp"
+        android:text="Volver"
+        app:cornerRadius="12dp"
+        style="@style/Widget.Trivium.Button.Outlined" />
 
-</RelativeLayout>
+</LinearLayout>
