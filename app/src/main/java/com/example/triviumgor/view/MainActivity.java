@@ -14,6 +14,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -30,6 +32,7 @@ import com.example.triviumgor.controller.BluetoothController;
 import com.example.triviumgor.controller.PacienteController;
 import com.example.triviumgor.controller.SesionController;
 import com.example.triviumgor.controller.TratamientoController;
+import com.example.triviumgor.controller.UsuarioController;
 import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.DispositivoState;
 import com.example.triviumgor.model.Paciente;
@@ -61,6 +64,7 @@ public class MainActivity extends AppCompatActivity
     private TratamientoController tratamientoController;
     private PacienteController pacienteController;
     private SesionController sesionController;
+    UsuarioController usuarioController;
     private PacienteDataManager dataManager;
 
     // ========================
@@ -174,6 +178,7 @@ public class MainActivity extends AppCompatActivity
         tratamientoController = new TratamientoController(this);
         pacienteController = new PacienteController(dataManager);
         sesionController = new SesionController(dataManager);
+        usuarioController = new UsuarioController(this, dataManager);
 
         sharedPreferences = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
 
@@ -254,6 +259,11 @@ public class MainActivity extends AppCompatActivity
         InicioPulsos2.setEnabled(false);
         UIHelper.setButtonColor(InicioPulsos, UIHelper.COLOR_DESHABILITADO);
         UIHelper.setButtonColor(InicioPulsos2, UIHelper.COLOR_DESHABILITADO);
+
+        //Toolbar
+        // Configurar el Toolbar
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
     }
 
     // ========================
@@ -748,6 +758,85 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    // ========================
+    // TOOLBAR-OPTIONSMENU
+    // ========================
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Obtener rol del usuario
+        String rol = sharedPreferences.getString("rol", "");
+
+        // ==== MENÚ COMÚN PARA TODOS ====
+        menu.add(0, 10, 10, "👥 Ver Pacientes");
+
+        // ==== MENÚ SOLO PARA ADMIN ====
+        if ("admin".equals(rol)) {
+            menu.add(0, 1, 1, "⚙️ Administrar Usuarios");
+            menu.add(0, 12, 12, "📊 Reportes Completos");
+        }
+
+        // ==== MENÚ PARA ADMIN Y MÉDICOS ====
+        if ("admin".equals(rol) || "medico".equals(rol)) {
+            menu.add(0, 11, 11, "➕ Nuevo Paciente");
+        }
+
+        // ==== MENÚ COMÚN - CERRAR SESIÓN ====
+        menu.add(0, 2, 99, "🚪 Cerrar Sesión");
+
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int itemId = item.getItemId();
+
+        if (itemId == 1) {
+            // Administrar Usuarios (SOLO ADMIN)
+            if (usuarioController.esAdmin()) {
+                Intent intent = new Intent(MainActivity.this, AdminUsuariosActivity.class);
+                startActivity(intent);
+            } else {
+                Toast.makeText(this, "⛔ Acceso denegado. Solo administradores.",
+                        Toast.LENGTH_SHORT).show();
+            }
+            return true;
+
+        } else if (itemId == 2) {
+            // Cerrar Sesión
+            logout();
+            return true;
+
+        } else if (itemId == 10) {
+            // Ver Pacientes (TODOS)
+            Toast.makeText(this, "Mostrando lista de pacientes...", Toast.LENGTH_SHORT).show();
+            // Aquí va tu código para mostrar pacientes
+            return true;
+
+        } else if (itemId == 11) {
+            // Nuevo Paciente (ADMIN y MÉDICOS)
+            if (usuarioController.esAdminOMedico()) {
+                Toast.makeText(this, "Creando nuevo paciente...", Toast.LENGTH_SHORT).show();
+                // Aquí va tu código para crear paciente
+            } else {
+                Toast.makeText(this, "⛔ Acceso denegado. Solo médicos y administradores.",
+                        Toast.LENGTH_SHORT).show();
+            }
+            return true;
+
+        } else if (itemId == 12) {
+            // Reportes Completos (SOLO ADMIN)
+            if (usuarioController.esAdmin()) {
+                Toast.makeText(this, "Abriendo reportes completos...", Toast.LENGTH_SHORT).show();
+                // Aquí va tu código para reportes
+            } else {
+                Toast.makeText(this, "⛔ Acceso denegado. Solo administradores.",
+                        Toast.LENGTH_SHORT).show();
+            }
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
     // ========================
     // LOGOUT
     // ========================

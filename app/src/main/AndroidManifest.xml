@@ -61,6 +61,13 @@
             android:launchMode="singleTop"
             android:screenOrientation="landscape" />
 
+        <!-- AdminUsuariosActivity - SOLO PARA ADMIN -->
+        <activity
+            android:name=".view.AdminUsuariosActivity"
+            android:exported="false"
+            android:label="Administrar Usuarios"
+            android:parentActivityName=".MainActivity" />
+
         <!-- VentanaPacienteActivity -->
         <activity
             android:name=".view.VentanaPacienteActivity"

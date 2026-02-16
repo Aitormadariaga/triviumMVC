@@ -17,8 +17,10 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.triviumgor.R;
+import com.example.triviumgor.controller.UsuarioController;
 import com.example.triviumgor.database.PacienteDBHelper;
 import com.example.triviumgor.database.PacienteDataManager;
+import com.example.triviumgor.model.Usuario;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
@@ -30,22 +32,35 @@ public class AdminUsuariosActivity extends AppCompatActivity {
     private Spinner spinnerRol;
     private Button btnCrearUsuario;
     private ListView listViewUsuarios;
+    // Controller y datos
+    private UsuarioController usuarioController;
     private PacienteDataManager dataManager;
-    
-    private List<String> usernamesList; // Para mantener track de los usernames
+    private List<Usuario> usuariosList;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Inicializar DataManager
+        dataManager = new PacienteDataManager(this);
+        if (!dataManager.open()) {
+            Toast.makeText(this, "Error al abrir la base de datos", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
+        // Inicializar Controller
+        usuarioController = new UsuarioController(this, dataManager);
         
         // 🔒 VERIFICACIÓN DE SEGURIDAD - SOLO ADMIN PUEDE ACCEDER
         SharedPreferences prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
         String rolUsuario = prefs.getString("rol", "");
         
-        if (!"admin".equals(rolUsuario)) {
-            Toast.makeText(this, "⛔ Acceso denegado. Solo administradores pueden acceder.", 
-                          Toast.LENGTH_LONG).show();
-            finish(); // Cerrar la activity inmediatamente
+        if (!usuarioController.esAdmin()) {
+            Toast.makeText(this, "⛔ Acceso denegado. Solo administradores.",
+                    Toast.LENGTH_LONG).show();
+            finish();
             return;
         }
         
@@ -54,8 +69,8 @@ public class AdminUsuariosActivity extends AppCompatActivity {
         // Configurar título
         setTitle("Administrar Usuarios");
         
-        // Inicializar lista de usernames
-        usernamesList = new ArrayList<>();
+        // Inicializar lista de usuarios
+        usuariosList = new ArrayList<>();
 
         // Inicializar vistas
         etNewUsername = findViewById(R.id.etNewUsername);
@@ -65,26 +80,11 @@ public class AdminUsuariosActivity extends AppCompatActivity {
         btnCrearUsuario = findViewById(R.id.btnCrearUsuario);
         listViewUsuarios = findViewById(R.id.listViewUsuarios);
 
-        // Configurar spinner de roles con emojis
-        String[] roles = {
-            "👑 admin - Administrador",
-            "👨‍⚕️ medico - Médico",
-            "👩‍⚕️ enfermero - Enfermero/a",
-            "💪 fisioterapeuta - Fisioterapeuta",
-            "📋 recepcionista - Recepcionista"
-        };
-        ArrayAdapter<String> adapterRoles = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, roles);
-        adapterRoles.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerRol.setAdapter(adapterRoles);
+        // Configurar spinner - Ahora usa métodos del controller
+        configurarSpinnerRoles();
 
-        // Abrir base de datos
-        dataManager = new PacienteDataManager(this);
-        if (!dataManager.open()) {
-            Toast.makeText(this, "Error al abrir la base de datos", Toast.LENGTH_LONG).show();
-            finish();
-            return;
-        }
+
+
 
         // Cargar usuarios existentes
         cargarUsuarios();
@@ -106,115 +106,67 @@ public class AdminUsuariosActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Configurar spinner usando métodos estáticos del controller
+     */
+    private void configurarSpinnerRoles() {
+        // ✨ Ahora usa el método del controller
+        String[] roles = UsuarioController.Rol.getTextosTodos();
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_item, roles);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerRol.setAdapter(adapter);
+    }
+
     private void crearNuevoUsuario() {
         String username = etNewUsername.getText().toString().trim();
         String password = etNewPassword.getText().toString().trim();
         String nombreCompleto = etNombreCompleto.getText().toString().trim();
-        
-        // Obtener rol sin emoji
-        String rolSeleccionado = spinnerRol.getSelectedItem().toString();
-        String rol = extraerRolDeTexto(rolSeleccionado);
+
+        // Extraer rol usando método del controller
+        String rolTexto = spinnerRol.getSelectedItem().toString();
+        UsuarioController.Rol rol = UsuarioController.Rol.fromTextoFormateado(rolTexto);
 
         // ===== VALIDACIONES =====
-        
-        // Validar username
-        if (TextUtils.isEmpty(username)) {
-            Toast.makeText(this, "❌ Ingresa un nombre de usuario", Toast.LENGTH_SHORT).show();
-            etNewUsername.requestFocus();
-            return;
-        }
-        
-        if (username.contains(" ")) {
-            Toast.makeText(this, "❌ El usuario no puede contener espacios", Toast.LENGTH_SHORT).show();
-            etNewUsername.requestFocus();
-            return;
-        }
-        
-        if (username.length() < 4) {
-            Toast.makeText(this, "❌ El usuario debe tener al menos 4 caracteres", 
-                          Toast.LENGTH_SHORT).show();
-            etNewUsername.requestFocus();
-            return;
-        }
 
-        // Validar password
-        if (TextUtils.isEmpty(password)) {
-            Toast.makeText(this, "❌ Ingresa una contraseña", Toast.LENGTH_SHORT).show();
-            etNewPassword.requestFocus();
-            return;
-        }
+        // ✨ TODAS las validaciones las hace el controller
+        UsuarioController.ResultadoOperacion resultado =
+                usuarioController.crearUsuario(username, password, nombreCompleto, rol);
 
-        if (password.length() < 6) {
-            Toast.makeText(this, "❌ La contraseña debe tener al menos 6 caracteres", 
-                          Toast.LENGTH_SHORT).show();
-            etNewPassword.requestFocus();
-            return;
-        }
+        if (resultado.exitoso) {
+            Toast.makeText(this, "✅ " + resultado.mensaje, Toast.LENGTH_SHORT).show();
 
-        // Validar nombre completo
-        if (TextUtils.isEmpty(nombreCompleto)) {
-            Toast.makeText(this, "❌ Ingresa el nombre completo", Toast.LENGTH_SHORT).show();
-            etNombreCompleto.requestFocus();
-            return;
-        }
-
-        // ===== CREAR USUARIO =====
-        long result = dataManager.crearUsuario(username, password, nombreCompleto, rol);
-
-        if (result != -1) {
-            Toast.makeText(this, "✅ Usuario '" + username + "' creado exitosamente", 
-                          Toast.LENGTH_SHORT).show();
-            
-            // Limpiar campos
+            // Limpiar formulario
             etNewUsername.setText("");
             etNewPassword.setText("");
             etNombreCompleto.setText("");
             spinnerRol.setSelection(0);
-            
+
             // Recargar lista
             cargarUsuarios();
-            
-            // Hacer scroll al final de la lista
-            listViewUsuarios.smoothScrollToPosition(usernamesList.size() - 1);
+            listViewUsuarios.smoothScrollToPosition(usuariosList.size() - 1);
         } else {
-            Toast.makeText(this, "❌ Error: El usuario '" + username + "' ya existe", 
-                          Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "❌ " + resultado.mensaje, Toast.LENGTH_LONG).show();
         }
     }
 
     private void cargarUsuarios() {
         List<String> listaUsuarios = new ArrayList<>();
-        usernamesList.clear();
-        
-        Cursor cursor = dataManager.obtenerTodosUsuarios();
-        
-        if (cursor != null && cursor.moveToFirst()) {
-            do {
-                String username = cursor.getString(
-                    cursor.getColumnIndex(PacienteDBHelper.COLUMN_USERNAME));
-                String nombreCompleto = cursor.getString(
-                    cursor.getColumnIndex(PacienteDBHelper.COLUMN_NOMBRE_COMPLETO));
-                String rol = cursor.getString(
-                    cursor.getColumnIndex(PacienteDBHelper.COLUMN_ROL));
-                int activo = cursor.getInt(
-                    cursor.getColumnIndex(PacienteDBHelper.COLUMN_ACTIVO));
-                
-                // Guardar username para referencia
-                usernamesList.add(username);
-                
-                // Crear texto para mostrar
-                String estado = (activo == 1) ? "✓" : "✗";
-                String emoji = getEmojiPorRol(rol);
-                
-                String textoUsuario = estado + " " + emoji + " " + username + "\n" +
-                                     "   " + nombreCompleto + " [" + rol + "]";
-                
-                listaUsuarios.add(textoUsuario);
-            } while (cursor.moveToNext());
-            
-            cursor.close();
+
+        // ✨ Obtener usuarios del controller
+        usuariosList = usuarioController.obtenerTodosLosUsuarios();
+
+        for (Usuario usuario : usuariosList) {
+            String estado = (usuario.getActivo() == 1) ? "✓" : "✗";
+            String emoji = UsuarioController.Rol.fromCodigo(usuario.getRol()).getEmoji(); //fromCodigo obtiene el Rol de la clase que hay en UsuarioController y el getEmoji coje el emoji que da la clase
+
+            String texto = estado + " " + emoji + " " + usuario.getUsername() + "\n" +
+                    "   " + usuario.getNombreCompleto() + " [" + usuario.getRol() + "]";
+
+            listaUsuarios.add(texto);
         }
-        
+
         if (listaUsuarios.isEmpty()) {
             listaUsuarios.add("No hay usuarios registrados");
         }
@@ -223,23 +175,22 @@ public class AdminUsuariosActivity extends AppCompatActivity {
                 this, android.R.layout.simple_list_item_1, listaUsuarios);
         listViewUsuarios.setAdapter(adapter);
     }
-    
+
+
+    /**
+     * Mostrar opciones para gestionar usuario
+     */
     private void mostrarOpcionesUsuario(final int position) {
-        if (position >= usernamesList.size()) {
-            return; // Por si acaso
-        }
+        if (position >= usuariosList.size()) return;
         
-        final String username = usernamesList.get(position);
-        
-        // No permitir modificar el usuario actual
-        SharedPreferences prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
-        String usuarioActual = prefs.getString("username", "");
+        final Usuario usuario = usuariosList.get(position);
+        String usuarioActual = usuarioController.getUsernameActual();
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Opciones para: " + username);
+        builder.setTitle("Opciones para: " + usuario.getUsername());
         
         String[] opciones;
-        if (username.equals(usuarioActual)) {
+        if (usuario.getUsername().equals(usuarioActual)) {
             // El usuario actual solo puede cambiar su contraseña
             opciones = new String[]{
                 "🔑 Cambiar mi contraseña",
@@ -259,10 +210,10 @@ public class AdminUsuariosActivity extends AppCompatActivity {
             public void onClick(DialogInterface dialog, int which) {
                 if (which == 0) {
                     // Cambiar contraseña
-                    mostrarDialogoCambiarPassword(username);
-                } else if (which == 1 && !username.equals(usuarioActual)) {
+                    mostrarDialogoCambiarPassword(usuario);
+                } else if (which == 1 && !usuario.getUsername().equals(usuarioActual)) {
                     // Activar/Desactivar (solo si no es el usuario actual)
-                    toggleEstadoUsuario(username);
+                    toggleEstadoUsuario(usuario);
                 }
             }
         });
@@ -270,9 +221,9 @@ public class AdminUsuariosActivity extends AppCompatActivity {
         builder.show();
     }
     
-    private void mostrarDialogoCambiarPassword(final String username) {
+    private void mostrarDialogoCambiarPassword(final Usuario usuario) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Cambiar contraseña de " + username);
+        builder.setTitle("Cambiar contraseña de " + usuario.getUsername());
         
         // Crear EditText para la nueva contraseña
         final TextInputEditText etNewPass = new TextInputEditText(this);
@@ -286,23 +237,13 @@ public class AdminUsuariosActivity extends AppCompatActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 String newPassword = etNewPass.getText().toString().trim();
-                
-                if (newPassword.length() < 6) {
-                    Toast.makeText(AdminUsuariosActivity.this, 
-                                  "❌ La contraseña debe tener al menos 6 caracteres", 
-                                  Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                
-                if (dataManager.cambiarPassword(username, newPassword)) {
-                    Toast.makeText(AdminUsuariosActivity.this, 
-                                  "✅ Contraseña cambiada exitosamente", 
-                                  Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(AdminUsuariosActivity.this, 
-                                  "❌ Error al cambiar la contraseña", 
-                                  Toast.LENGTH_SHORT).show();
-                }
+
+                // ✨ Controller valida y cambia
+                UsuarioController.ResultadoOperacion resultado =
+                        usuarioController.cambiarPassword(usuario.getUsername(), newPassword);
+
+                String mensaje = (resultado.exitoso ? "✅ " : "❌ ") + resultado.mensaje;
+                Toast.makeText(AdminUsuariosActivity.this, mensaje, Toast.LENGTH_SHORT).show();
             }
         });
         
@@ -310,62 +251,35 @@ public class AdminUsuariosActivity extends AppCompatActivity {
         builder.show();
     }
     
-    private void toggleEstadoUsuario(final String username) {
-        // Obtener estado actual
-        Cursor cursor = dataManager.obtenerUsuario(username);
-        if (cursor != null && cursor.moveToFirst()) {
-            int activoActual = cursor.getInt(
-                cursor.getColumnIndex(PacienteDBHelper.COLUMN_ACTIVO));
-            cursor.close();
-            
-            final boolean nuevoEstado = (activoActual == 0); // Invertir estado
-            String mensaje = nuevoEstado ? "activar" : "desactivar";
-            
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Confirmar");
-            builder.setMessage("¿Deseas " + mensaje + " al usuario '" + username + "'?");
-            
-            builder.setPositiveButton("Sí", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    if (dataManager.establecerEstadoUsuario(username, nuevoEstado)) {
-                        String estado = nuevoEstado ? "activado" : "desactivado";
-                        Toast.makeText(AdminUsuariosActivity.this, 
-                                      "✅ Usuario " + estado, 
-                                      Toast.LENGTH_SHORT).show();
-                        cargarUsuarios();
-                    } else {
-                        Toast.makeText(AdminUsuariosActivity.this, 
-                                      "❌ Error al cambiar estado", 
-                                      Toast.LENGTH_SHORT).show();
+    private void toggleEstadoUsuario(final Usuario usuario) {
+
+        final boolean nuevoEstado = (usuario.getActivo() == 0);
+        String accion = nuevoEstado ? "activar" : "desactivar";
+
+        new AlertDialog.Builder(this)
+                .setTitle("Confirmar")
+                .setMessage("¿Deseas " + accion + " al usuario '" + usuario.getUsername() + "'?")
+                .setPositiveButton("Sí", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        // ✨ Controller valida y cambia estado
+                        UsuarioController.ResultadoOperacion resultado =
+                                usuarioController.toggleEstadoUsuario(usuario.getUsername(), nuevoEstado);
+
+                        if (resultado.exitoso) {
+                            Toast.makeText(AdminUsuariosActivity.this,
+                                    "✅ " + resultado.mensaje,
+                                    Toast.LENGTH_SHORT).show();
+                            cargarUsuarios();
+                        } else {
+                            Toast.makeText(AdminUsuariosActivity.this,
+                                    "❌ " + resultado.mensaje,
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     }
-                }
-            });
-            
-            builder.setNegativeButton("No", null);
-            builder.show();
-        }
-    }
-    
-    private String extraerRolDeTexto(String textoConEmoji) {
-        // "👑 admin - Administrador" -> "admin"
-        if (textoConEmoji.contains("admin")) return "admin";
-        if (textoConEmoji.contains("medico")) return "medico";
-        if (textoConEmoji.contains("enfermero")) return "enfermero";
-        if (textoConEmoji.contains("fisioterapeuta")) return "fisioterapeuta";
-        if (textoConEmoji.contains("recepcionista")) return "recepcionista";
-        return "medico"; // Por defecto
-    }
-    
-    private String getEmojiPorRol(String rol) {
-        switch (rol) {
-            case "admin": return "👑";
-            case "medico": return "👨‍⚕️";
-            case "enfermero": return "👩‍⚕️";
-            case "fisioterapeuta": return "💪";
-            case "recepcionista": return "📋";
-            default: return "👤";
-        }
+                })
+                .setNegativeButton("No", null)
+                .show();
     }
 
     @Override

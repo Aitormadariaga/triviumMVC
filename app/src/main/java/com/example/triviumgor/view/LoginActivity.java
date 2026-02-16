@@ -13,21 +13,22 @@ import android.widget.Toast;
 
 import com.example.triviumgor.R;
 import com.example.triviumgor.database.PacienteDataManager;
+import com.example.triviumgor.controller.UsuarioController;
 import com.google.android.material.textfield.TextInputEditText;
 
 public class LoginActivity extends AppCompatActivity {
     private TextInputEditText etUsername, etPassword;
     private Button btnLogin;
     private TextView tvError;
-    private SharedPreferences sharedPreferences;
+
+    // Controller y DataManager
+    private UsuarioController usuarioController;
     private PacienteDataManager dataManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
-        sharedPreferences = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
 
         dataManager = new PacienteDataManager(this);
         if (!dataManager.open()) {
@@ -36,11 +37,16 @@ public class LoginActivity extends AppCompatActivity {
             return;
         }
 
-        if (isLoggedIn()) {
+        // Inicializar Controller
+        usuarioController = new UsuarioController(this, dataManager);
+
+        // Verificar sesión activa
+        if (usuarioController.haySesionActiva()) {
             navigateToMain();
             return;
         }
 
+        // Inicializar vistas
         etUsername = findViewById(R.id.etUsername);
         etPassword = findViewById(R.id.etPassword);
         btnLogin = findViewById(R.id.btnLogin);
@@ -60,41 +66,17 @@ public class LoginActivity extends AppCompatActivity {
         String username = etUsername.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
-        if (TextUtils.isEmpty(username)) {
-            tvError.setText("Por favor, ingresa tu usuario");
-            tvError.setVisibility(View.VISIBLE);
-            etUsername.requestFocus();
-            return;
-        }
+        UsuarioController.ResultadoLogin resultado = usuarioController.login(username, password);
 
-        if (TextUtils.isEmpty(password)) {
-            tvError.setText("Por favor, ingresa tu contraseña");
-            tvError.setVisibility(View.VISIBLE);
-            etPassword.requestFocus();
-            return;
-        }
-
-        if (dataManager.verificarCredenciales(username, password)) {
-            saveLoginState(true, username);
-            Toast.makeText(this, "Bienvenido, " + username, Toast.LENGTH_SHORT).show();
+        if (resultado.exitoso) {
+            Toast.makeText(this, resultado.mensaje, Toast.LENGTH_SHORT).show();
             navigateToMain();
         } else {
-            tvError.setText("Usuario o contraseña incorrectos");
+            tvError.setText(resultado.mensaje);
             tvError.setVisibility(View.VISIBLE);
             etPassword.setText("");
             etPassword.requestFocus();
         }
-    }
-
-    private boolean isLoggedIn() {
-        return sharedPreferences.getBoolean("isLoggedIn", false);
-    }
-
-    private void saveLoginState(boolean isLoggedIn, String username) {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putBoolean("isLoggedIn", isLoggedIn);
-        editor.putString("username", username);
-        editor.apply();
     }
 
     private void navigateToMain() {

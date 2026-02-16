@@ -176,7 +176,7 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 
         try {
             db.execSQL(SQL_CREATE_USUARIOS);
-            insertarUsuarioAdmin(db);
+            insertarUsuarioAdmin(db); // si o si empieza con un admin
             Log.d("PacienteDBHelper", "Tabla usuarios creada en actualización de base de datos");
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error al crear tabla usuarios: " + e.getMessage());
