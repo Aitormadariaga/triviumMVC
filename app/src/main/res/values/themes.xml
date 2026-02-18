@@ -71,29 +71,37 @@
 
     <!-- Botón por defecto: Material 3 Filled -->
     <style name="Widget.Trivium.Button" parent="Widget.Material3.Button">
-        <!-- hereda colores de tema automáticamente -->
+        <item name="android:textAllCaps">false</item>
     </style>
 
     <!-- Botón tonal (secundario) -->
-    <style name="Widget.Trivium.Button.Tonal" parent="Widget.Material3.Button.TonalButton" />
+    <style name="Widget.Trivium.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="android:textAllCaps">false</item>
+    </style>
 
     <!-- Botón outlined -->
-    <style name="Widget.Trivium.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton" />
+    <style name="Widget.Trivium.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textAllCaps">false</item>
+    </style>
 
     <!-- Botón de texto -->
-    <style name="Widget.Trivium.Button.Text" parent="Widget.Material3.Button.TextButton" />
+    <style name="Widget.Trivium.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textAllCaps">false</item>
+    </style>
 
     <!-- Botón de error (borrar, etc.) -->
     <style name="Widget.Trivium.Button.Error" parent="Widget.Material3.Button.OutlinedButton">
         <item name="strokeColor">@color/md_theme_error</item>
         <item name="android:textColor">@color/md_theme_error</item>
         <item name="iconTint">@color/md_theme_error</item>
+        <item name="android:textAllCaps">false</item>
     </style>
 
     <!-- Botón success (crear usuario, etc.) -->
     <style name="Widget.Trivium.Button.Success" parent="Widget.Material3.Button">
         <item name="backgroundTint">@color/color_success</item>
         <item name="android:textColor">@color/color_onSuccess</item>
+        <item name="android:textAllCaps">false</item>
     </style>
 
     <!-- Card por defecto -->

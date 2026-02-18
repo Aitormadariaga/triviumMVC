@@ -5,13 +5,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
     tools:context=".view.MainActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="vertical">
 
         <!-- Toolbar -->
         <androidx.appcompat.widget.Toolbar
@@ -20,17 +20,18 @@
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorPrimary"
             android:elevation="4dp"
-            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"/>
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
 
         <!-- Título -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="TRIVIUM GOR"
-            android:textSize="24sp"
+            android:textAppearance="?attr/textAppearanceTitleLarge"
+            android:textColor="?attr/colorPrimary"
             android:textStyle="bold"
             android:gravity="center"
-            android:layout_marginBottom="16dp"/>
+            android:paddingVertical="12dp" />
 
         <!-- Contenedor FlexBox -->
         <com.google.android.flexbox.FlexboxLayout
@@ -39,414 +40,538 @@
             app:flexDirection="row"
             app:flexWrap="wrap"
             app:justifyContent="space_between"
+            android:paddingHorizontal="8dp"
             android:layout_marginBottom="16dp">
 
-            <!-- Grupo 1: Dispositivo 1 -->
-            <LinearLayout
+            <!-- ========================================== -->
+            <!-- Grupo 1: Dispositivo 1                     -->
+            <!-- ========================================== -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="8dp"
-                android:background="#E0E0E0"
-                android:layout_marginEnd="8dp">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Dispositivo 1"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:layout_marginBottom="8dp"/>
-
-                <TextView
-                    android:id="@+id/dispBluetoothNom1"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="TextView"
-                    android:textAlignment="center"
-                    android:textStyle="italic"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/nombreDispositivoPac1"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="TextView"
-                    android:textAlignment="center"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/button_conectar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Conectar"
-                    android:layout_marginBottom="4dp"/>
-
-                <Button
-                    android:id="@+id/button_IniPulsos"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Iniciar"
-                    android:layout_marginBottom="4dp"/>
-
-                <Button
-                    android:id="@+id/button_FinPulsos"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Finalizar"/>
+                android:layout_margin="4dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Intensidad:"/>
-
-                    <EditText
-                        android:id="@+id/editTextNumberDecimal3"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:inputType="number"
-                        android:text="10"
-                        android:imeOptions="actionNext"
-                        android:nextFocusForward="@id/editTextNumberDecimal4"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/buttonAmpliDec"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="-"/>
-
-                    <Button
-                        android:id="@+id/buttonAmpliInc"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="+"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Duración:"/>
-
-                    <EditText
-                        android:id="@+id/editTextNumberDecimal4"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:inputType="number"
-                        android:text="20"
-                        android:imeOptions="actionDone"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="T. Restante:"/>
-
-                    <EditText
-                        android:id="@+id/editTextNumberDecimal5"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:inputType="number"
-                        android:enabled="false"
-                        android:text="20"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Batería:"/>
-
-                    <EditText
-                        android:id="@+id/editTextNivelBatt"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:enabled="false"/>
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/OtroTexto6"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:visibility="gone" />
-            </LinearLayout>
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:minWidth="200dp">
 
-            <!-- Sección central: Gestión de pacientes y Desconectar -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Dispositivo 1"
+                        android:textAppearance="?attr/textAppearanceTitleSmall"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/dispBluetoothNom1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="TextView"
+                        android:textAlignment="center"
+                        android:textStyle="italic"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/nombreDispositivoPac1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="TextView"
+                        android:textAlignment="center"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_conectar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Conectar"
+                        android:layout_marginBottom="4dp"
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Trivium.Button" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_IniPulsos"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Iniciar"
+                        android:layout_marginBottom="4dp"
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Trivium.Button.Tonal" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_FinPulsos"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Finalizar"
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Trivium.Button.Outlined" />
+
+                    <!-- Intensidad -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Intensidad:"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/editTextNumberDecimal3"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:inputType="number"
+                            android:text="10"
+                            android:imeOptions="actionNext"
+                            android:nextFocusForward="@id/editTextNumberDecimal4" />
+                    </LinearLayout>
+
+                    <!-- Botones +/- -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="4dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonAmpliDec"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="-"
+                            android:textSize="18sp"
+                            app:cornerRadius="10dp"
+                            style="@style/Widget.Trivium.Button.Outlined" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonAmpliInc"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text="+"
+                            android:textSize="18sp"
+                            app:cornerRadius="10dp"
+                            style="@style/Widget.Trivium.Button.Tonal" />
+                    </LinearLayout>
+
+                    <!-- Duración -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Duración:"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/editTextNumberDecimal4"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:inputType="number"
+                            android:text="20"
+                            android:imeOptions="actionDone" />
+                    </LinearLayout>
+
+                    <!-- T. Restante -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="T. Restante:"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/editTextNumberDecimal5"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:inputType="number"
+                            android:enabled="false"
+                            android:text="20" />
+                    </LinearLayout>
+
+                    <!-- Batería -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Batería:"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/editTextNivelBatt"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:enabled="false" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/OtroTexto6"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ========================================== -->
+            <!-- Sección central: Gestión pacientes         -->
+            <!-- ========================================== -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginEnd="8dp"
-                android:layout_marginStart="8dp">
+                android:layout_marginHorizontal="4dp">
 
-                <!-- Gestión de pacientes -->
-                <LinearLayout
+                <!-- Card gestión pacientes -->
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="8dp"
-                    android:background="#E8F5E9"
-                    android:gravity="center"
-                    android:layout_marginBottom="8dp">
+                    android:layout_margin="4dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="?attr/colorPrimaryContainer">
 
-                    <TextView
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Gestión de Pacientes"
-                        android:textStyle="bold"
-                        android:textSize="18sp"
+                        android:orientation="vertical"
+                        android:padding="16dp"
                         android:gravity="center"
-                        android:layout_marginBottom="8dp"/>
+                        android:minWidth="200dp">
 
-                    <TextView
-                        android:id="@+id/nombrePaciente"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Ningún paciente seleccionado"
-                        android:textStyle="italic"
-                        android:gravity="center"
-                        android:layout_marginBottom="8dp"/>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Gestión de Pacientes"
+                            android:textAppearance="?attr/textAppearanceTitleSmall"
+                            android:textColor="?attr/colorOnPrimaryContainer"
+                            android:textStyle="bold"
+                            android:gravity="center"
+                            android:layout_marginBottom="8dp" />
 
-                    <Button
-                        android:id="@+id/btnGuardarConf"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:text="Guardar Configuración"
-                        android:visibility="gone" />
+                        <TextView
+                            android:id="@+id/nombrePaciente"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Ningún paciente seleccionado"
+                            android:textAppearance="?attr/textAppearanceBodyMedium"
+                            android:textColor="?attr/colorOnPrimaryContainer"
+                            android:textStyle="italic"
+                            android:gravity="center"
+                            android:layout_marginBottom="12dp" />
 
-                    <Button
-                        android:id="@+id/btnPaciente"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Conectar Paciente" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnGuardarConf"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:text="Guardar Configuración"
+                            android:visibility="gone"
+                            app:cornerRadius="12dp"
+                            style="@style/Widget.Trivium.Button.Success" />
 
-                    <Button
-                        android:id="@+id/btnVerLista"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Ver Lista" />
-                </LinearLayout>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPaciente"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:text="Conectar Paciente"
+                            app:cornerRadius="12dp"
+                            style="@style/Widget.Trivium.Button" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnVerLista"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Ver Lista"
+                            app:cornerRadius="12dp"
+                            style="@style/Widget.Trivium.Button.Outlined" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
 
                 <!-- Espaciador -->
                 <Space
                     android:layout_width="match_parent"
-                    android:layout_height="94dp"/>
+                    android:layout_height="24dp" />
 
                 <!-- Botón Desconectar -->
-                <LinearLayout
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/buttonDisconnect"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@android:color/transparent"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="8dp">
+                    android:layout_margin="4dp"
+                    android:text="Desconectar"
+                    app:cornerRadius="12dp"
+                    style="@style/Widget.Trivium.Button.Error" />
 
-                    <Button
-                        android:id="@+id/buttonDisconnect"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Desconectar"
-                        android:textColorLink="#ff6750A3" />
-                </LinearLayout>
             </LinearLayout>
 
-            <!-- Grupo 2: Dispositivo 2 -->
-            <LinearLayout
+            <!-- ========================================== -->
+            <!-- Grupo 2: Dispositivo 2                     -->
+            <!-- ========================================== -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="8dp"
-                android:background="#E0E0E0">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Dispositivo 2"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:layout_marginBottom="8dp"/>
-
-                <TextView
-                    android:id="@+id/dispBluetoothNom2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="TextView"
-                    android:textAlignment="center"
-                    android:textStyle="italic"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/nombreDispositivoPac2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="TextView"
-                    android:textAlignment="center"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/button_conectar2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Conectar"
-                    android:layout_marginBottom="4dp"/>
-
-                <Button
-                    android:id="@+id/button_IniPulsos2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Iniciar"
-                    android:layout_marginBottom="4dp"/>
-
-                <Button
-                    android:id="@+id/button_FinPulsos2"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Finalizar"/>
+                android:layout_margin="4dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Intensidad:"/>
-
-                    <EditText
-                        android:id="@+id/editTextNumberDecimal10"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:inputType="number"
-                        android:text="10"
-                        android:imeOptions="actionNext"
-                        android:nextFocusForward="@id/editTextNumberDecimal12"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/buttonAmpliDec3"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="-"/>
-
-                    <Button
-                        android:id="@+id/buttonAmpliInc3"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="+"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Duración:"/>
-
-                    <EditText
-                        android:id="@+id/editTextNumberDecimal12"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:inputType="number"
-                        android:text="20"
-                        android:imeOptions="actionDone"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="T. Restante:"/>
-
-                    <EditText
-                        android:id="@+id/editTextNumberDecimal13"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:inputType="number"
-                        android:enabled="false"
-                        android:text="20"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Batería:"/>
-
-                    <EditText
-                        android:id="@+id/editTextNivelBatt2"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:enabled="false"/>
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/OtroTexto7"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:visibility="gone" />
-            </LinearLayout>
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:minWidth="200dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Dispositivo 2"
+                        android:textAppearance="?attr/textAppearanceTitleSmall"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/dispBluetoothNom2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="TextView"
+                        android:textAlignment="center"
+                        android:textStyle="italic"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/nombreDispositivoPac2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="TextView"
+                        android:textAlignment="center"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_conectar2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Conectar"
+                        android:layout_marginBottom="4dp"
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Trivium.Button" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_IniPulsos2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Iniciar"
+                        android:layout_marginBottom="4dp"
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Trivium.Button.Tonal" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_FinPulsos2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Finalizar"
+                        app:cornerRadius="12dp"
+                        style="@style/Widget.Trivium.Button.Outlined" />
+
+                    <!-- Intensidad -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Intensidad:"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/editTextNumberDecimal10"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:inputType="number"
+                            android:text="10"
+                            android:imeOptions="actionNext"
+                            android:nextFocusForward="@id/editTextNumberDecimal12" />
+                    </LinearLayout>
+
+                    <!-- Botones +/- -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="4dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonAmpliDec3"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="-"
+                            android:textSize="18sp"
+                            app:cornerRadius="10dp"
+                            style="@style/Widget.Trivium.Button.Outlined" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/buttonAmpliInc3"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text="+"
+                            android:textSize="18sp"
+                            app:cornerRadius="10dp"
+                            style="@style/Widget.Trivium.Button.Tonal" />
+                    </LinearLayout>
+
+                    <!-- Duración -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="10dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Duración:"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/editTextNumberDecimal12"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:inputType="number"
+                            android:text="20"
+                            android:imeOptions="actionDone" />
+                    </LinearLayout>
+
+                    <!-- T. Restante -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="T. Restante:"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/editTextNumberDecimal13"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:inputType="number"
+                            android:enabled="false"
+                            android:text="20" />
+                    </LinearLayout>
+
+                    <!-- Batería -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Batería:"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <EditText
+                            android:id="@+id/editTextNivelBatt2"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:enabled="false" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/OtroTexto7"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
         </com.google.android.flexbox.FlexboxLayout>
     </LinearLayout>
 </ScrollView>
