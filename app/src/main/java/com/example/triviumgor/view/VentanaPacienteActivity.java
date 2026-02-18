@@ -59,6 +59,8 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     private RelativeLayout detallesPacienteLayout;
     private TextView tvDNI, tvCIC, tvNombreCompleto, tvPatologia, tvMedicacion;
     private TextView tvIntensidad, tvTiempo, tvIntensidad2, tvTiempo2;
+    private TextView tvCreadoPor;
+    private View dividerCreador;
     private Button btnEditar, btnBorrar, btnIniciarTratamiento;
 
     private int pacienteSeleccionadoId = -1;
@@ -77,7 +79,8 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     private UsuarioController usuarioController;
 
     // Usuario logueado
-    private int idUsuarioActual = -1;
+    private int idUsuarioActual = -1;  // Para listar pacientes (-1 = todos, usado por admin)
+    private int idUsuarioReal = -1;    // ID real del usuario, siempre el verdadero (para vincular creador)
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,9 +106,10 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         usuarioController = new UsuarioController(this, dataManager);
 
         // Obtener el ID del usuario logueado y si es admin, sera -1 (para leer todos los pacientes)
+        idUsuarioReal = getSharedPreferences("LoginPrefs", MODE_PRIVATE).getInt("userId", -1);
         idUsuarioActual = usuarioController.esAdmin()
                 ? -1
-                : getSharedPreferences("LoginPrefs", MODE_PRIVATE).getInt("userId", -1);
+                : idUsuarioReal;
 
         // Inicializar vistas básicas
         nomSelPaciente = findViewById(R.id.nombrePaciente);
@@ -257,11 +261,11 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             }
         } else {
             if (optionDis == 3) {
-                resultado = pacienteController.guardarPaciente2disp(idUsuarioActual,dni, nombre, apellido1,
+                resultado = pacienteController.guardarPaciente2disp(idUsuarioReal,dni, nombre, apellido1,
                         apellido2, patologia, medicacion,
                         intensidadStr, tiempoStr, intensidadStr2, tiempoStr2, cic);
             } else {
-                resultado = pacienteController.guardarPaciente(idUsuarioActual,dni, nombre, apellido1,
+                resultado = pacienteController.guardarPaciente(idUsuarioReal,dni, nombre, apellido1,
                         apellido2, patologia, medicacion,
                         intensidadStr, tiempoStr, cic);
             }
@@ -323,6 +327,8 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         btnEditar = findViewById(R.id.editarPaciente);
         btnVerHistorico = findViewById(R.id.btnVerHistorico);
         btnBorrar = findViewById(R.id.borrarPaciente);
+        tvCreadoPor = findViewById(R.id.tvCreadoPor);
+        dividerCreador = findViewById(R.id.dividerCreador);
 
         btnIniciarTratamiento.setOnClickListener(v -> {
             if (DNI_otroDisp != null && !DNI_otroDisp.isEmpty()) {
@@ -415,6 +421,23 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         } else {
             tvIntensidad2.setVisibility(View.GONE);
             tvTiempo2.setVisibility(View.GONE);
+        }
+
+        // Mostrar info del creador solo si el usuario es admin
+        if (usuarioController.esAdmin()) {
+            String infoCreador = pacienteController.obtenerInfoCreador(pacienteId);
+            if (infoCreador != null) {
+                tvCreadoPor.setText("📝 Creado por: " + infoCreador);
+                tvCreadoPor.setVisibility(View.VISIBLE);
+                dividerCreador.setVisibility(View.VISIBLE);
+            } else {
+                tvCreadoPor.setText("📝 Creador: Sin registro");
+                tvCreadoPor.setVisibility(View.VISIBLE);
+                dividerCreador.setVisibility(View.VISIBLE);
+            }
+        } else {
+            tvCreadoPor.setVisibility(View.GONE);
+            dividerCreador.setVisibility(View.GONE);
         }
     }
 

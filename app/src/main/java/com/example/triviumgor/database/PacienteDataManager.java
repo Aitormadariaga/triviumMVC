@@ -20,12 +20,12 @@ import java.util.Locale;
 
 
 public class PacienteDataManager {
-        private SQLiteDatabase database;
-        private final PacienteDBHelper dbHelper;
+    private SQLiteDatabase database;
+    private final PacienteDBHelper dbHelper;
 
-        public PacienteDataManager(Context context) {
-            dbHelper = new PacienteDBHelper(context);
-        }
+    public PacienteDataManager(Context context) {
+        dbHelper = new PacienteDBHelper(context);
+    }
 
     public boolean open() {
         try {
@@ -40,9 +40,9 @@ public class PacienteDataManager {
         }
     }
 
-        public void close() {
-            dbHelper.close();
-        }
+    public void close() {
+        dbHelper.close();
+    }
 
     // ======= MÉTODOS PARA AUTENTICACIÓN DE USUARIOS =======
 
@@ -340,37 +340,59 @@ public class PacienteDataManager {
         return database.rawQuery(query, new String[]{String.valueOf(idPaciente)});
     }
 
+    /**
+     * Obtiene la información del usuario que creó un paciente concreto.
+     * Devuelve un Cursor con las columnas del usuario + fecha_asignacion,
+     * o null si no se encuentra creador.
+     *
+     * @param idPaciente ID del paciente
+     * @return Cursor con los datos del creador, o null
+     */
+    public Cursor obtenerCreadorDePaciente(int idPaciente) {
+        String query =
+                "SELECT u." + PacienteDBHelper.COLUMN_NOMBRE_COMPLETO + ", " +
+                        "u." + PacienteDBHelper.COLUMN_USERNAME + ", " +
+                        "up." + PacienteDBHelper.COLUMN_UP_FECHA + " " +
+                        "FROM " + PacienteDBHelper.TABLE_USUARIO_PACIENTE + " up " +
+                        "INNER JOIN " + PacienteDBHelper.TABLE_USUARIOS + " u " +
+                        "ON u." + PacienteDBHelper.COLUMN_USUARIO_ID + " = up." + PacienteDBHelper.COLUMN_UP_USUARIO_ID + " " +
+                        "WHERE up." + PacienteDBHelper.COLUMN_UP_PACIENTE_ID + " = ? " +
+                        "AND up." + PacienteDBHelper.COLUMN_UP_ROL + " = 'creador'";
+
+        return database.rawQuery(query, new String[]{String.valueOf(idPaciente)});
+    }
+
     // ======= MÉTODOS PARA PACIENTES =======
 
-        public long nuevoPaciente(String dni, String nombre, String apellido1, String apellido2,
-                                     String patologia,String medicacion, int intensidad, int tiempo, String cic) {
-            ContentValues values = new ContentValues();
-            values.put(PacienteDBHelper.COLUMN_DNI, dni);
-            values.put(PacienteDBHelper.COLUMN_NOMBRE, nombre);
-            values.put(PacienteDBHelper.COLUMN_APELLIDO1, apellido1);
-            values.put(PacienteDBHelper.COLUMN_APELLIDO2, apellido2);
-            values.put(PacienteDBHelper.COLUMN_PATOLOGIA, patologia);
-            values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, medicacion);
-            values.put(PacienteDBHelper.COLUMN_INTENSIDAD, intensidad);
-            values.put(PacienteDBHelper.COLUMN_TIEMPO, tiempo);
-            values.put(PacienteDBHelper.COLUMN_CIC, cic);
+    public long nuevoPaciente(String dni, String nombre, String apellido1, String apellido2,
+                              String patologia,String medicacion, int intensidad, int tiempo, String cic) {
+        ContentValues values = new ContentValues();
+        values.put(PacienteDBHelper.COLUMN_DNI, dni);
+        values.put(PacienteDBHelper.COLUMN_NOMBRE, nombre);
+        values.put(PacienteDBHelper.COLUMN_APELLIDO1, apellido1);
+        values.put(PacienteDBHelper.COLUMN_APELLIDO2, apellido2);
+        values.put(PacienteDBHelper.COLUMN_PATOLOGIA, patologia);
+        values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, medicacion);
+        values.put(PacienteDBHelper.COLUMN_INTENSIDAD, intensidad);
+        values.put(PacienteDBHelper.COLUMN_TIEMPO, tiempo);
+        values.put(PacienteDBHelper.COLUMN_CIC, cic);
 
-            return database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
-        }
+        return database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
+    }
 
-        // Obtener todos los pacientes
-        public Cursor obtenerTodosPacientes() {
+    // Obtener todos los pacientes
+    public Cursor obtenerTodosPacientes() {
 
-            return database.query(
-                    PacienteDBHelper.TABLE_PACIENTES,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    PacienteDBHelper.COLUMN_NOMBRE // Ordenar por nombre
-            );
-        }
+        return database.query(
+                PacienteDBHelper.TABLE_PACIENTES,
+                null,
+                null,
+                null,
+                null,
+                null,
+                PacienteDBHelper.COLUMN_NOMBRE // Ordenar por nombre
+        );
+    }
     public Cursor obtenerPacientePorId(int id) {
         return database.query(
                 PacienteDBHelper.TABLE_PACIENTES,
@@ -412,18 +434,18 @@ public class PacienteDataManager {
     //guardar configuracion
     public int guardarConfiguracion(String dni, int intensidad,
                                     int tiempo){
-            try {
-                ContentValues values = new ContentValues();
-                values.put(PacienteDBHelper.COLUMN_INTENSIDAD, intensidad);
-                values.put(PacienteDBHelper.COLUMN_TIEMPO, tiempo);
+        try {
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_INTENSIDAD, intensidad);
+            values.put(PacienteDBHelper.COLUMN_TIEMPO, tiempo);
 
-                return  database.update(
-                        PacienteDBHelper.TABLE_PACIENTES,
-                        values,
-                        PacienteDBHelper.COLUMN_DNI + " =?",
-                        new String[]{dni}
-                );
-            }catch(Exception e) {
+            return  database.update(
+                    PacienteDBHelper.TABLE_PACIENTES,
+                    values,
+                    PacienteDBHelper.COLUMN_DNI + " =?",
+                    new String[]{dni}
+            );
+        }catch(Exception e) {
             Log.e(TAG, "Error al actualizar paciente: " + e.getMessage());
             return -1;
         }
@@ -485,7 +507,7 @@ public class PacienteDataManager {
     //para 1 paciente 2 dispositivos
 
     public long nuevoPaciente2disp(String dni, String nombre, String apellido1, String apellido2,
-                              String patologia,String medicacion, int intensidad, int tiempo, int intensidad2, int tiempo2, String cic) {
+                                   String patologia,String medicacion, int intensidad, int tiempo, int intensidad2, int tiempo2, String cic) {
         ContentValues values = new ContentValues();
         values.put(PacienteDBHelper.COLUMN_DNI, dni);
         values.put(PacienteDBHelper.COLUMN_NOMBRE, nombre);
@@ -502,8 +524,8 @@ public class PacienteDataManager {
         return database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
     }
     public int actualizarPaciente2disp(int id, String dni, String nombre, String apellido1,
-                                  String apellido2, String patologia, String medicacion, int intensidad,
-                                  int tiempo,int intensidad2, int tiempo2, String cic) {
+                                       String apellido2, String patologia, String medicacion, int intensidad,
+                                       int tiempo,int intensidad2, int tiempo2, String cic) {
         try {
             ContentValues values = new ContentValues();
             values.put(PacienteDBHelper.COLUMN_DNI, dni);
@@ -682,4 +704,3 @@ public class PacienteDataManager {
 
 
 }
-

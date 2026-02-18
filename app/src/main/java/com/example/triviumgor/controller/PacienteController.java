@@ -590,6 +590,39 @@ public class PacienteController {
     }
 
     // ========================
+    // INFORMACIÓN DE CREADOR (para admin)
+    // ========================
+
+    /**
+     * Obtiene información sobre quién creó un paciente y cuándo.
+     *
+     * @param idPaciente ID del paciente
+     * @return String formateado, ej: "Dr. García (garcia01) — 2025-06-15 10:30:00"
+     *         o null si no se encuentra creador
+     */
+    public String obtenerInfoCreador(int idPaciente) {
+        Cursor cursor = dataManager.obtenerCreadorDePaciente(idPaciente);
+        try {
+            if (cursor != null && cursor.moveToFirst()) {
+                String nombreCompleto = cursor.getString(cursor.getColumnIndex("nombre_completo"));
+                String username = cursor.getString(cursor.getColumnIndex("username"));
+                String fecha = cursor.getString(cursor.getColumnIndex("fecha_asignacion"));
+
+                String info = nombreCompleto + " (" + username + ")";
+                if (fecha != null && !fecha.isEmpty()) {
+                    info += "\n" + fecha;
+                }
+                return info;
+            }
+        } catch (Exception e) {
+            // Log omitido para no añadir dependencia de Android en el controller
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return null;
+    }
+
+    // ========================
     // HELPERS PRIVADOS
     // ========================
 
