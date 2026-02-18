@@ -22,6 +22,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.triviumgor.R;
 import com.example.triviumgor.controller.PacienteController;
+import com.example.triviumgor.controller.UsuarioController;
 import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.Paciente;
 
@@ -73,6 +74,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     // Controller y DataManager
     private PacienteDataManager dataManager;
     private PacienteController pacienteController;
+    private UsuarioController usuarioController;
 
     // Usuario logueado
     private int idUsuarioActual = -1;
@@ -98,10 +100,12 @@ public class VentanaPacienteActivity extends AppCompatActivity {
 
         // Inicializar controller
         pacienteController = new PacienteController(dataManager);
+        usuarioController = new UsuarioController(this, dataManager);
 
-        // Obtener el ID del usuario logueado
-        idUsuarioActual = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
-                .getInt("userId", -1);
+        // Obtener el ID del usuario logueado y si es admin, sera -1 (para leer todos los pacientes)
+        idUsuarioActual = usuarioController.esAdmin()
+                ? -1
+                : getSharedPreferences("LoginPrefs", MODE_PRIVATE).getInt("userId", -1);
 
         // Inicializar vistas básicas
         nomSelPaciente = findViewById(R.id.nombrePaciente);
