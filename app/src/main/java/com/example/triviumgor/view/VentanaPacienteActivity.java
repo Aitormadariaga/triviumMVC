@@ -74,6 +74,9 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     private PacienteDataManager dataManager;
     private PacienteController pacienteController;
 
+    // Usuario logueado
+    private int idUsuarioActual = -1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -95,6 +98,10 @@ public class VentanaPacienteActivity extends AppCompatActivity {
 
         // Inicializar controller
         pacienteController = new PacienteController(dataManager);
+
+        // Obtener el ID del usuario logueado
+        idUsuarioActual = getSharedPreferences("LoginPrefs", MODE_PRIVATE)
+                .getInt("userId", -1);
 
         // Inicializar vistas básicas
         nomSelPaciente = findViewById(R.id.nombrePaciente);
@@ -165,12 +172,12 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 actualizarListaPacientes();
                 for (int i = 0; i < pacientesNombres.length; i++) {
                     if (nombreFiltrado.equals(pacientesNombres[i])) {
-                        pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(i);
+                        pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(i, idUsuarioActual);
                         break;
                     }
                 }
             } else {
-                pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(position);
+                pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(position, idUsuarioActual);
             }
 
             if (pacienteSeleccionadoId != -1) {
@@ -246,11 +253,11 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             }
         } else {
             if (optionDis == 3) {
-                resultado = pacienteController.guardarPaciente2disp(dni, nombre, apellido1,
+                resultado = pacienteController.guardarPaciente2disp(idUsuarioActual,dni, nombre, apellido1,
                         apellido2, patologia, medicacion,
                         intensidadStr, tiempoStr, intensidadStr2, tiempoStr2, cic);
             } else {
-                resultado = pacienteController.guardarPaciente(dni, nombre, apellido1,
+                resultado = pacienteController.guardarPaciente(idUsuarioActual,dni, nombre, apellido1,
                         apellido2, patologia, medicacion,
                         intensidadStr, tiempoStr, cic);
             }
@@ -287,7 +294,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     // ========================
 
     private void actualizarListaPacientes() {
-        pacientesNombres = pacienteController.obtenerListaPacientesFormateada();
+        pacientesNombres = pacienteController.obtenerListaPacientesFormateada(idUsuarioActual);
         vieLista.setAdapter(new ArrayAdapter<>(this,
                 android.R.layout.simple_list_item_1, pacientesNombres));
         filtrado = false;
@@ -438,7 +445,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                     String filtro = editText.getText().toString().toLowerCase().trim();
                     String campo = spinner.getSelectedItem().toString();
 
-                    List<String> resultados = pacienteController.filtrarPacientes(filtro, campo);
+                    List<String> resultados = pacienteController.filtrarPacientes(filtro, campo, idUsuarioActual);
                     vieLista.setAdapter(new ArrayAdapter<>(this,
                             android.R.layout.simple_list_item_1, resultados));
                     filtrado = true;
@@ -481,7 +488,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 String nombrePacDado = pacientesNombres[posicionDado];
                 nombrePacDado = nombrePacDado.substring(nombrePacDado.indexOf("-") + 1);
                 nomSelPaciente.setText(nombrePacDado);
-                pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(posicionDado);
+                pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(posicionDado, idUsuarioActual);
                 cargarDetallesPaciente(pacienteSeleccionadoId);
                 detallesScrollView.setVisibility(View.VISIBLE);
                 verLista.setVisibility(View.GONE);
