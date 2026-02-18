@@ -104,13 +104,16 @@ public class PacienteController {
     }
 
     // ========================
-    // CRUD
+    // CRUD (con vinculación automática al creador)
     // ========================
 
     /**
-     * Guarda un paciente nuevo validando todos los campos.
+     * Guarda un paciente nuevo y lo vincula automáticamente al usuario creador.
+     *
+     * @param idUsuarioCreador ID del usuario logueado que está creando el paciente.
+     *                         Pasar -1 si no se quiere vincular (ej: admin sin restricciones).
      */
-    public Resultado guardarPaciente(String dni, String nombre, String apellido1, String apellido2,
+    public Resultado guardarPaciente(int idUsuarioCreador, String dni, String nombre, String apellido1, String apellido2,
                                      String patologia, String medicacion,
                                      String intensidadStr, String tiempoStr, String cic) {
         // Validar campos obligatorios
@@ -135,20 +138,37 @@ public class PacienteController {
             return Resultado.error("La intensidad y el tiempo deben ser números");
         }
 
-        long resultado = dataManager.nuevoPaciente(dni, nombre, apellido1, apellido2,
+        long resultadoId = dataManager.nuevoPaciente(dni, nombre, apellido1, apellido2,
                 patologia, medicacion, intensidad, tiempo, cic);
 
-        if (resultado != -1) {
-            return Resultado.ok("Paciente guardado correctamente", resultado);
+        if (resultadoId != -1) {
+            // Vincular automáticamente al creador
+            if (idUsuarioCreador != -1) {
+                dataManager.vincularUsuarioPaciente(idUsuarioCreador, (int) resultadoId, "creador");
+            }
+
+            return Resultado.ok("Paciente guardado correctamente", resultadoId);
         } else {
             return Resultado.error("Error al guardar el paciente");
         }
     }
 
     /**
-     * Guarda un paciente nuevo con datos para 2 dispositivos.
+     * Sobrecarga para mantener compatibilidad con código existente que no pasa idUsuario.
+     * En ese caso no se crea vínculo (útil para administradores o migraciones).
      */
-    public Resultado guardarPaciente2disp(String dni, String nombre, String apellido1, String apellido2,
+    public Resultado guardarPaciente(String dni, String nombre, String apellido1, String apellido2,
+                                     String patologia, String medicacion,
+                                     String intensidadStr, String tiempoStr, String cic) {
+        return guardarPaciente(-1, dni, nombre, apellido1, apellido2,
+                patologia, medicacion, intensidadStr, tiempoStr, cic);
+    }
+
+    /**
+     * Guarda un paciente nuevo con datos para 2 dispositivos y vincula al creador.
+     */
+    public Resultado guardarPaciente2disp(int idUsuarioCreador,
+                                          String dni, String nombre, String apellido1, String apellido2,
                                           String patologia, String medicacion,
                                           String intensidadStr, String tiempoStr,
                                           String intensidadStr2, String tiempoStr2, String cic) {
@@ -175,14 +195,26 @@ public class PacienteController {
             return Resultado.error("La intensidad y el tiempo deben ser números");
         }
 
-        long resultado = dataManager.nuevoPaciente2disp(dni, nombre, apellido1, apellido2,
+        long resultadoId = dataManager.nuevoPaciente2disp(dni, nombre, apellido1, apellido2,
                 patologia, medicacion, intensidad, tiempo, intensidad2, tiempo2, cic);
 
-        if (resultado != -1) {
-            return Resultado.ok("Paciente guardado correctamente", resultado);
+        if (resultadoId != -1) {
+            if (idUsuarioCreador != -1) {
+                dataManager.vincularUsuarioPaciente(idUsuarioCreador, (int) resultadoId, "creador");
+            }
+            return Resultado.ok("Paciente guardado correctamente", resultadoId);
         } else {
             return Resultado.error("Error al guardar el paciente");
         }
+    }
+
+    /** Sobrecarga de compatibilidad sin idUsuario */
+    public Resultado guardarPaciente2disp(String dni, String nombre, String apellido1, String apellido2,
+                                          String patologia, String medicacion,
+                                          String intensidadStr, String tiempoStr,
+                                          String intensidadStr2, String tiempoStr2, String cic) {
+        return guardarPaciente2disp(-1, dni, nombre, apellido1, apellido2,
+                patologia, medicacion, intensidadStr, tiempoStr, intensidadStr2, tiempoStr2, cic);
     }
 
     /**
@@ -274,6 +306,48 @@ public class PacienteController {
         return Resultado.ok("Paciente borrado correctamente");
     }
 
+
+    // ========================
+    // GESTIÓN DE ASIGNACIONES
+    // ========================
+
+    /**
+     * Asigna un paciente existente a un usuario (rol "asignado").
+     * No hace nada si ya tiene acceso.
+     */
+    public Resultado asignarPacienteAUsuario(int idUsuario, int idPaciente) {
+        if (dataManager.tieneAccesoPaciente(idUsuario, idPaciente)) {
+            return Resultado.error("Este usuario ya tiene acceso a ese paciente");
+        }
+
+        boolean ok = dataManager.vincularUsuarioPaciente(idUsuario, idPaciente, "asignado");
+        if (ok) {
+            return Resultado.ok("Paciente asignado correctamente");
+        } else {
+            return Resultado.error("Error al asignar el paciente");
+        }
+    }
+
+    /**
+     * Desasigna un paciente de un usuario.
+     */
+    public Resultado desasignarPacienteDeUsuario(int idUsuario, int idPaciente) {
+        boolean ok = dataManager.desvincularUsuarioPaciente(idUsuario, idPaciente);
+        if (ok) {
+            return Resultado.ok("Asignación eliminada correctamente");
+        } else {
+            return Resultado.error("No se encontró la asignación o hubo un error");
+        }
+    }
+
+    /**
+     * Comprueba si un usuario tiene acceso a un paciente concreto.
+     */
+    public boolean tieneAccesoPaciente(int idUsuario, int idPaciente) {
+        return dataManager.tieneAccesoPaciente(idUsuario, idPaciente);
+    }
+
+
     // ========================
     // CONSULTAS
     // ========================
@@ -345,11 +419,38 @@ public class PacienteController {
     }
 
     /**
-     * Obtiene la lista de pacientes formateada para mostrar en ListView.
-     * Formato: "DNI: XXXXXXXXX - Nombre Apellido1 Apellido2"
+     * Obtiene solo los pacientes que pertenecen o han sido asignados a un usuario.
+     * Esta es la consulta principal para mostrar la lista en pantalla.
+     *
+     * @param idUsuario ID del usuario logueado
+     * @return Lista de pacientes visibles para ese usuario
      */
-    public String[] obtenerListaPacientesFormateada() {
-        List<Paciente> pacientes = obtenerTodosPacientes();
+    public List<Paciente> obtenerPacientesDeUsuario(int idUsuario) {
+        List<Paciente> lista = new ArrayList<>();
+        Cursor cursor = dataManager.obtenerPacientesDeUsuario(idUsuario);
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                lista.add(cursorToPaciente(cursor));
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        return lista;
+    }
+
+
+
+    /**
+     * Versión formateada de obtenerPacientesDeUsuario para mostrar en ListView.
+     * Formato: "DNI: XXXXXXXXX - Nombre Apellido1 Apellido2"
+     *
+     * @param idUsuario ID del usuario logueado. Pasar -1 para obtener todos (admin).
+     */
+    public String[] obtenerListaPacientesFormateada(int idUsuario) {
+        List<Paciente> pacientes = (idUsuario == -1)
+                ? obtenerTodosPacientes()
+                : obtenerPacientesDeUsuario(idUsuario);
 
         if (pacientes.isEmpty()) {
             return new String[]{"No hay pacientes registrados"};
@@ -366,11 +467,21 @@ public class PacienteController {
         return nombres;
     }
 
+    /** Sobrecarga de compatibilidad: devuelve todos los pacientes */
+    public String[] obtenerListaPacientesFormateada() {
+        return obtenerListaPacientesFormateada(-1);
+    }
+
     /**
-     * Obtiene el ID de un paciente por su posición en la lista.
+     * Obtiene el ID de un paciente por su posición en la lista del usuario.
+     *
+     * @param posicion   Posición en la lista
+     * @param idUsuario  ID del usuario logueado, o -1 para todos
      */
-    public int obtenerIdPorPosicion(int posicion) {
-        Cursor cursor = dataManager.obtenerTodosPacientes();
+    public int obtenerIdPorPosicion(int posicion, int idUsuario) {
+        Cursor cursor = (idUsuario == -1)
+                ? dataManager.obtenerTodosPacientes()
+                : dataManager.obtenerPacientesDeUsuario(idUsuario);
 
         if (cursor != null && cursor.moveToPosition(posicion)) {
             int id = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_ID));
@@ -382,6 +493,11 @@ public class PacienteController {
         return -1;
     }
 
+    /** Sobrecarga de compatibilidad */
+    public int obtenerIdPorPosicion(int posicion) {
+        return obtenerIdPorPosicion(posicion, -1);
+    }
+
     // ========================
     // BÚSQUEDA / FILTRADO
     // ========================
@@ -390,18 +506,22 @@ public class PacienteController {
      * Filtra la lista de pacientes por un campo y texto de búsqueda.
      * @param filtro texto a buscar (en minúsculas)
      * @param campo campo por el que filtrar: "Nombre", "Apellidos", "DNI", "CIC", "Patologia"
+     * @param idUsuario ID del usuario logueado, o -1 para todos (admin)
      * @return lista filtrada de strings formateados para ListView
      */
-    public List<String> filtrarPacientes(String filtro, String campo) {
+    public List<String> filtrarPacientes(String filtro, String campo, int idUsuario) {
         List<String> resultado = new ArrayList<>();
-        List<Paciente> todos = obtenerTodosPacientes();
-        String[] formateados = obtenerListaPacientesFormateada();
+        List<Paciente> todos = (idUsuario == -1)
+                ? obtenerTodosPacientes()
+                : obtenerPacientesDeUsuario(idUsuario);
+
 
         String filtroLower = (filtro != null) ? filtro.toLowerCase().trim() : "";
 
-        for (int i = 0; i < todos.size(); i++) {
-            Paciente p = todos.get(i);
+        for (Paciente p : todos) {
             boolean coincide = false;
+            String textoFormateado = "DNI: " + p.getDNI() + " - " + p.getNombre() + " " + p.getAp1()
+                    + (p.getAp2() != null && !p.getAp2().isEmpty() ? " " + p.getAp2() : "");
 
             switch (campo) {
                 case "Nombre":
@@ -411,26 +531,32 @@ public class PacienteController {
                     coincide = p.getDNI().toLowerCase().contains(filtroLower);
                     break;
                 case "Apellidos":
-                    String apellidos = p.getAp1() + " " + p.getAp2();
+                    String apellidos = p.getAp1() + " " + (p.getAp2() != null ? p.getAp2() : "");
                     coincide = apellidos.toLowerCase().contains(filtroLower);
                     break;
                 case "CIC":
-                    coincide = p.getCIC().toLowerCase().contains(filtroLower);
+                    coincide = p.getCIC() != null && p.getCIC().toLowerCase().contains(filtroLower);
                     break;
                 case "Patologia":
-                    coincide = p.getPatologia().toLowerCase().contains(filtroLower);
+                    coincide = p.getPatologia() != null && p.getPatologia().toLowerCase().contains(filtroLower);
                     break;
                 default:
-                    coincide = formateados[i].toLowerCase().contains(filtroLower);
+                    coincide = textoFormateado.toLowerCase().contains(filtroLower);
                     break;
             }
 
             if (coincide || filtroLower.isEmpty()) {
-                resultado.add(formateados[i]);
+                resultado.add(textoFormateado);
             }
         }
 
+
         return resultado;
+    }
+
+    /** Sobrecarga de compatibilidad: filtra sobre todos los pacientes */
+    public List<String> filtrarPacientes(String filtro, String campo) {
+        return filtrarPacientes(filtro, campo, -1);
     }
 
     // ========================
@@ -461,5 +587,28 @@ public class PacienteController {
         } else {
             return Resultado.error("Error al guardar la configuración");
         }
+    }
+
+    // ========================
+    // HELPERS PRIVADOS
+    // ========================
+
+    /** Convierte la fila actual de un Cursor en un objeto Paciente */
+    private Paciente cursorToPaciente(Cursor cursor) {
+        int id = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_ID));
+        String cic = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_CIC));
+        String dni = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_DNI));
+        String nombre = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_NOMBRE));
+        String ap1 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO1));
+        String ap2 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO2));
+        String patologia = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_PATOLOGIA));
+        String medicacion = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_MEDICACIÓN));
+        int intensidad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD));
+        int tiempo = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_TIEMPO));
+        int intensidad2 = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD2));
+        int tiempo2 = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_TIEMPO2));
+
+        return new Paciente(id, cic, dni, nombre, ap1, ap2, patologia, medicacion,
+                intensidad, tiempo, intensidad2, tiempo2);
     }
 }

@@ -233,6 +233,113 @@ public class PacienteDataManager {
         );
     }
 
+    // ======= MÉTODOS PARA USUARIO_PACIENTE =======
+
+    /**
+     * Vincula un paciente a un usuario con el rol indicado.
+     * Se llama automáticamente al crear un paciente nuevo (rol = "creador"),
+     * o manualmente al asignar un paciente existente (rol = "asignado").
+     *
+     * @param idUsuario  ID del usuario
+     * @param idPaciente ID del paciente
+     * @param rol        "creador" o "asignado"
+     * @return true si se insertó correctamente, false si ya existía o hubo error
+     */
+    public boolean vincularUsuarioPaciente(int idUsuario, int idPaciente, String rol) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_UP_USUARIO_ID, idUsuario);
+            values.put(PacienteDBHelper.COLUMN_UP_PACIENTE_ID, idPaciente);
+            values.put(PacienteDBHelper.COLUMN_UP_ROL, rol);
+            values.put(PacienteDBHelper.COLUMN_UP_FECHA, sdf.format(new Date()));
+
+            long resultado = database.insert(PacienteDBHelper.TABLE_USUARIO_PACIENTE, null, values);
+            return resultado != -1;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al vincular usuario-paciente: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Desvincula un usuario de un paciente (elimina la relación).
+     *
+     * @param idUsuario  ID del usuario
+     * @param idPaciente ID del paciente
+     * @return true si se eliminó correctamente
+     */
+    public boolean desvincularUsuarioPaciente(int idUsuario, int idPaciente) {
+        try {
+            return database.delete(
+                    PacienteDBHelper.TABLE_USUARIO_PACIENTE,
+                    PacienteDBHelper.COLUMN_UP_USUARIO_ID + " = ? AND " +
+                            PacienteDBHelper.COLUMN_UP_PACIENTE_ID + " = ?",
+                    new String[]{String.valueOf(idUsuario), String.valueOf(idPaciente)}
+            ) > 0;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al desvincular usuario-paciente: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Comprueba si un usuario ya tiene acceso a un paciente concreto.
+     */
+    public boolean tieneAccesoPaciente(int idUsuario, int idPaciente) {
+        try {
+            Cursor cursor = database.query(
+                    PacienteDBHelper.TABLE_USUARIO_PACIENTE,
+                    new String[]{PacienteDBHelper.COLUMN_UP_ROL},
+                    PacienteDBHelper.COLUMN_UP_USUARIO_ID + " = ? AND " +
+                            PacienteDBHelper.COLUMN_UP_PACIENTE_ID + " = ?",
+                    new String[]{String.valueOf(idUsuario), String.valueOf(idPaciente)},
+                    null, null, null
+            );
+
+            boolean tiene = cursor != null && cursor.getCount() > 0;
+            if (cursor != null) cursor.close();
+            return tiene;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al comprobar acceso: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Obtiene todos los pacientes visibles para un usuario concreto,
+     * usando un JOIN entre pacientes y usuario_paciente.
+     *
+     * @param idUsuario ID del usuario logueado
+     * @return Cursor con las columnas de la tabla pacientes
+     */
+    public Cursor obtenerPacientesDeUsuario(int idUsuario) {
+        String query =
+                "SELECT p.* FROM " + PacienteDBHelper.TABLE_PACIENTES + " p " +
+                        "INNER JOIN " + PacienteDBHelper.TABLE_USUARIO_PACIENTE + " up " +
+                        "ON p." + PacienteDBHelper.COLUMN_ID + " = up." + PacienteDBHelper.COLUMN_UP_PACIENTE_ID + " " +
+                        "WHERE up." + PacienteDBHelper.COLUMN_UP_USUARIO_ID + " = ? " +
+                        "ORDER BY p." + PacienteDBHelper.COLUMN_NOMBRE;
+
+        return database.rawQuery(query, new String[]{String.valueOf(idUsuario)});
+    }
+
+    /**
+     * Obtiene los IDs de todos los usuarios que tienen acceso a un paciente.
+     * Útil para mostrar la lista de usuarios asignados a un paciente.
+     */
+    public Cursor obtenerUsuariosDeUnPaciente(int idPaciente) {
+        String query =
+                "SELECT u.*, up." + PacienteDBHelper.COLUMN_UP_ROL + " AS rol_asignacion " +
+                        "FROM " + PacienteDBHelper.TABLE_USUARIOS + " u " +
+                        "INNER JOIN " + PacienteDBHelper.TABLE_USUARIO_PACIENTE + " up " +
+                        "ON u." + PacienteDBHelper.COLUMN_USUARIO_ID + " = up." + PacienteDBHelper.COLUMN_UP_USUARIO_ID + " " +
+                        "WHERE up." + PacienteDBHelper.COLUMN_UP_PACIENTE_ID + " = ?";
+
+        return database.rawQuery(query, new String[]{String.valueOf(idPaciente)});
+    }
+
     // ======= MÉTODOS PARA PACIENTES =======
 
         public long nuevoPaciente(String dni, String nombre, String apellido1, String apellido2,
@@ -338,7 +445,8 @@ public class PacienteDataManager {
     }
 
     /**
-     * Elimina permanentemente un paciente de la base de datos
+     * Elimina permanentemente un paciente y todos sus registros relacionados de la base de datos
+     * (sesiones + vínculos usuario_paciente).
      * @param idPaciente ID del paciente a eliminar
      * @return true si se eliminó correctamente, false en caso contrario
      */
@@ -349,6 +457,13 @@ public class PacienteDataManager {
                     PacienteDBHelper.TABLE_SESIONES,
                     PacienteDBHelper.COLUMN_PACIENTE_ID + " = ?",
                     new String[] { String.valueOf(idPaciente) }
+            );
+
+            // Eliminar vínculos usuario_paciente
+            database.delete(
+                    PacienteDBHelper.TABLE_USUARIO_PACIENTE,
+                    PacienteDBHelper.COLUMN_UP_PACIENTE_ID + " = ?",
+                    new String[]{String.valueOf(idPaciente)}
             );
 
             // Luego eliminar el paciente
