@@ -493,6 +493,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     private void procesarExtras() {
         Bundle extras = getIntent().getExtras();
         boolean isVista = false;
+        boolean isCrear = false;
 
         if (extras != null) {
             nomPacienteDado = extras.getString("NOMBRE_PACIENTE", "");
@@ -500,6 +501,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             optionDis = extras.getInt("DISPOSITIVO_ELEC", 0);
             DNI_otroDisp = extras.getString("DNI_PAC_OTRODISP", "");
             isVista = extras.getBoolean("verSoloLista", false);
+            isCrear = extras.getBoolean("CREAR_PACIENTE", false);
         }
 
         if (nomPacienteDado != null && !nomPacienteDado.isEmpty()
@@ -533,7 +535,12 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             detallesScrollView.setVisibility(View.GONE);
             verLista.setVisibility(View.VISIBLE);
             pacienteScrollView.setVisibility(View.GONE);
-        } else {
+        } else if(isCrear){
+            btnIniciarTratamiento.setVisibility(View.GONE);
+            detallesPacienteLayout.setVisibility(View.GONE);
+            verLista.setVisibility(View.GONE);
+            pacienteScrollView.setVisibility(View.VISIBLE);
+        }else {
             btnIniciarTratamiento.setVisibility(View.VISIBLE);
         }
     }
