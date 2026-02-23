@@ -5,6 +5,8 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -50,6 +52,7 @@ public class BluetoothController {
 
     private final Context context;
     private BluetoothAdapter btAdapter;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     // MACs leídas del archivo
     private final String[] dirMacs = new String[20];
@@ -202,33 +205,41 @@ public class BluetoothController {
     }
 
     /**
-     * Realiza la conexión BT al dispositivo seleccionado.
-     * Guarda socket, streams y dirección en DispositivoState.
+     * Realiza la conexión BT al dispositivo seleccionado EN UN HILO DE FONDO.
+     * Esto evita bloquear el hilo principal (UI) y previene ANR cuando
+     * el dispositivo está apagado o fuera de alcance.
+     * Los callbacks se ejecutan siempre en el hilo principal.
      */
     @SuppressLint("MissingPermission")
     private void realizarConexion(BluetoothDevice device, DispositivoState dispositivo,
                                   OnConnectedCallback onSuccess, OnErrorCallback onError) {
-        try {
-            BluetoothSocket socket = device.createRfcommSocketToServiceRecord(BT_UUID);
-            socket.connect();
+        new Thread(() -> {
+            try {
+                BluetoothSocket socket = device.createRfcommSocketToServiceRecord(BT_UUID);
+                socket.connect();
 
-            // Guardar estado en DispositivoState
-            dispositivo.setBtDevice(device);
-            dispositivo.setBtSocket(socket);
-            dispositivo.setAddress(device.getAddress());
-            dispositivo.setOutputStream(socket.getOutputStream());
-            dispositivo.setInputStream(socket.getInputStream());
-            dispositivo.setConnected(true);
-            dispositivo.setBattMon(true);
+                // Guardar estado en DispositivoState
+                dispositivo.setBtDevice(device);
+                dispositivo.setBtSocket(socket);
+                dispositivo.setAddress(device.getAddress());
+                dispositivo.setOutputStream(socket.getOutputStream());
+                dispositivo.setInputStream(socket.getInputStream());
+                dispositivo.setConnected(true);
+                dispositivo.setBattMon(true);
 
-            Log.d(TAG, "Conectado a: " + device.getName() + " (" + device.getAddress() + ")");
-            onSuccess.onConnected();
+                Log.d(TAG, "Conectado a: " + device.getName() + " (" + device.getAddress() + ")");
 
-        } catch (Exception e) {
-            Log.e(TAG, "Error de conexión: " + e.getMessage());
-            dispositivo.resetConexion();
-            onError.onError("Fallo al conectarse: " + e.getMessage());
-        }
+                // Callback de éxito en el hilo principal
+                mainHandler.post(onSuccess::onConnected);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error de conexión: " + e.getMessage());
+                dispositivo.resetConexion();
+
+                // Callback de error en el hilo principal
+                mainHandler.post(() -> onError.onError("Fallo al conectarse: " + e.getMessage()));
+            }
+        }, "BT-Connect-" + device.getAddress()).start();
     }
 
     /**

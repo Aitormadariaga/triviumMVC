@@ -1,12 +1,15 @@
 package com.example.triviumgor.view;
 
+import android.Manifest;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -19,9 +22,12 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.example.triviumgor.R;
 import com.example.triviumgor.controller.BluetoothController;
@@ -45,6 +51,7 @@ public class MainActivity extends AppCompatActivity
 
     private static final String TAG = "MainActivity";
     private static final int PACIENTE_REQUEST_CODE = 100;
+    private static final int REQUEST_BT_PERMISSION = 200;
     private static final UUID BT_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     // ========================
@@ -100,6 +107,12 @@ public class MainActivity extends AppCompatActivity
     private String nombrePaciente, DNIpaciente;
     private String nombrePaciente2, DNIpaciente2;
     private int opcionDispositivoInt = -1;
+
+    // ========================
+    // CONTROL DE PERMISO BT PENDIENTE
+    // ========================
+    // Guarda qué dispositivo intentaba conectar cuando se pidió el permiso
+    private int dispositivoPendienteConexion = 0; // 0 = ninguno, 1 o 2
 
     // ========================
     // BLUETOOTH RECEIVER
@@ -271,12 +284,73 @@ public class MainActivity extends AppCompatActivity
     }
 
     // ========================
+    // PERMISOS BLUETOOTH (Android 12+)
+    // ========================
+
+    /**
+     * Comprueba si tenemos el permiso BLUETOOTH_CONNECT (necesario en Android 12+).
+     * Si no lo tenemos, lo solicita y devuelve false.
+     * En Android 11 o inferior, siempre devuelve true.
+     */
+    private boolean tienePermisoBluetooth() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.BLUETOOTH_CONNECT},
+                        REQUEST_BT_PERMISSION);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Callback cuando el usuario acepta o rechaza el permiso.
+     */
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == REQUEST_BT_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permiso concedido: reintentar la conexión automáticamente
+                if (dispositivoPendienteConexion == 1) {
+                    Conexion.performClick();
+                } else if (dispositivoPendienteConexion == 2) {
+                    Conexion2.performClick();
+                }
+            } else {
+                Toast.makeText(this,
+                        "Se necesita el permiso de Bluetooth para conectar dispositivos",
+                        Toast.LENGTH_LONG).show();
+                // Restaurar botón al estado original
+                if (dispositivoPendienteConexion == 1) {
+                    UIHelper.resetButtonToDefault(Conexion);
+                    Conexion.setText("Conectar");
+                } else if (dispositivoPendienteConexion == 2) {
+                    UIHelper.resetButtonToDefault(Conexion2);
+                    Conexion2.setText("Conectar");
+                }
+            }
+            dispositivoPendienteConexion = 0;
+        }
+    }
+
+    // ========================
     // LISTENERS
     // ========================
 
     private void configurarListeners() {
         // CONECTAR Dispositivo 1
         Conexion.setOnClickListener(v -> {
+            // Verificar permiso Bluetooth antes de conectar (Android 12+)
+            if (!tienePermisoBluetooth()) {
+                dispositivoPendienteConexion = 1;
+                return;
+            }
+
             UIHelper.setButtonColor(Conexion, UIHelper.COLOR_CONECTANDO);
             Conexion.setText("conectando...");
 
@@ -305,6 +379,12 @@ public class MainActivity extends AppCompatActivity
 
         // CONECTAR Dispositivo 2
         Conexion2.setOnClickListener(v -> {
+            // Verificar permiso Bluetooth antes de conectar (Android 12+)
+            if (!tienePermisoBluetooth()) {
+                dispositivoPendienteConexion = 2;
+                return;
+            }
+
             UIHelper.setButtonColor(Conexion2, UIHelper.COLOR_CONECTANDO);
             Conexion2.setText("conectando...");
 
@@ -378,7 +458,7 @@ public class MainActivity extends AppCompatActivity
         FinPulsos.setOnClickListener(v -> {
             if (!dispositivo1.isConnected()) return;
             tratamientoController.finalizarSesion(dispositivo1);
-            InicioPulsos.setText("INICIAR");
+            InicioPulsos.setText("Iniciar");
             UIHelper.resetButtonToDefault(InicioPulsos);
             UIHelper.setButtonColor(FinPulsos, UIHelper.COLOR_SESION_PARADA);
         });
@@ -445,7 +525,7 @@ public class MainActivity extends AppCompatActivity
     public void onSesionFinalizada(int dispositivoNum) {
         runOnUiThread(() -> {
             if (dispositivoNum == 1) {
-                InicioPulsos.setText("INICIAR");
+                InicioPulsos.setText("Iniciar");
                 UIHelper.resetButtonToDefault(InicioPulsos);
             } else {
                 InicioPulsos2.setText("Iniciar");
