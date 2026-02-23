@@ -8,7 +8,7 @@
         android:maxSdkVersion="30" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_ADMIN"
-        android:maxSdkVersion="30" />S
+        android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
@@ -54,12 +54,14 @@
             android:name=".view.LoginActivity"
             android:exported="false" />
 
-        <!-- MainActivity -->
+        <!-- MainActivity: permite vertical y horizontal.
+             configChanges evita recrear la Activity al girar,
+             así no se pierden las conexiones Bluetooth activas. -->
         <activity
             android:name=".view.MainActivity"
             android:exported="false"
             android:launchMode="singleTop"
-            android:screenOrientation="landscape" />
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
 
         <!-- AdminUsuariosActivity - SOLO PARA ADMIN -->
         <activity
