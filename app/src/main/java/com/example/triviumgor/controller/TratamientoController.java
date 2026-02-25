@@ -130,6 +130,15 @@ public class TratamientoController {
         dispositivo.setClockStopped(true);
         detenerTimer(dispositivo);
 
+        // Cancelar thread de lectura de batería
+        if (dispositivo.getNumero() == 1 && batteryThread1 != null) {
+            batteryThread1.cancel();
+            batteryThread1 = null;
+        } else if (dispositivo.getNumero() == 2 && batteryThread2 != null) {
+            batteryThread2.cancel();
+            batteryThread2 = null;
+        }
+
         Log.d(TAG, "Sesión finalizada en dispositivo " + dispositivo.getNumero());
     }
 
@@ -295,8 +304,9 @@ public class TratamientoController {
 
     /**
      * Envía comando de solicitud de batería (0x46 = 'F').
+     * Público para poder solicitar la batería inmediatamente tras conectar.
      */
-    private void solicitarBateria(DispositivoState dispositivo) {
+    public void solicitarBateria(DispositivoState dispositivo) {
         try {
             OutputStream os = dispositivo.getOutputStream();
             if (os != null && dispositivo.isConnected()) {
@@ -332,18 +342,20 @@ public class TratamientoController {
      */
     private class BatteryReaderThread extends Thread {
         private final DispositivoState dispositivo;
+        private final java.io.InputStream myInputStream; // referencia propia al stream de ESTA conexión
         private volatile boolean running = true;
 
         BatteryReaderThread(DispositivoState dispositivo) {
             this.dispositivo = dispositivo;
+            this.myInputStream = dispositivo.getInputStream(); // capturar en construcción
         }
 
         public void cancel() {
             running = false;
             dispositivo.setBattMon(false);
             try {
-                if (dispositivo.getInputStream() != null) {
-                    dispositivo.getInputStream().close();
+                if (myInputStream != null) {
+                    myInputStream.close(); // cierra SOLO el stream de esta conexión
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -360,7 +372,7 @@ public class TratamientoController {
 
             while (running && dispositivo.isBattMon()) {
                 try {
-                    int bytes = dispositivo.getInputStream().read(buffer);
+                    int bytes = myInputStream.read(buffer);
                     for (int i = 0; i < bytes; i++) {
                         recBuffer[indiceRec] = buffer[i];
                         indiceRec++;

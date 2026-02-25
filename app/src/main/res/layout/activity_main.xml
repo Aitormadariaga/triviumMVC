@@ -62,15 +62,32 @@
                     android:padding="12dp"
                     android:minWidth="200dp">
 
-                    <TextView
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Dispositivo 1"
-                        android:textAppearance="?attr/textAppearanceTitleSmall"
-                        android:textColor="?attr/colorPrimary"
-                        android:textStyle="bold"
+                        android:orientation="horizontal"
                         android:gravity="center"
-                        android:layout_marginBottom="8dp" />
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Dispositivo 1"
+                            android:textAppearance="?attr/textAppearanceTitleSmall"
+                            android:textColor="?attr/colorPrimary"
+                            android:textStyle="bold"
+                            android:gravity="center" />
+
+                        <ImageView
+                            android:id="@+id/iconBatt1"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@drawable/ic_battery_unknown"
+                            android:visibility="gone"
+                            android:contentDescription="Batería dispositivo 1" />
+
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/dispBluetoothNom1"
@@ -226,30 +243,6 @@
                             android:text="20" />
                     </LinearLayout>
 
-                    <!-- Batería -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginTop="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Batería:"
-                            android:textAppearance="?attr/textAppearanceLabelMedium"
-                            android:textColor="?attr/colorOnSurfaceVariant" />
-
-                        <EditText
-                            android:id="@+id/editTextNivelBatt"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:enabled="false" />
-                    </LinearLayout>
-
                     <TextView
                         android:id="@+id/OtroTexto6"
                         android:layout_width="wrap_content"
@@ -374,15 +367,32 @@
                     android:padding="12dp"
                     android:minWidth="200dp">
 
-                    <TextView
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Dispositivo 2"
-                        android:textAppearance="?attr/textAppearanceTitleSmall"
-                        android:textColor="?attr/colorPrimary"
-                        android:textStyle="bold"
+                        android:orientation="horizontal"
                         android:gravity="center"
-                        android:layout_marginBottom="8dp" />
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Dispositivo 2"
+                            android:textAppearance="?attr/textAppearanceTitleSmall"
+                            android:textColor="?attr/colorPrimary"
+                            android:textStyle="bold"
+                            android:gravity="center" />
+
+                        <ImageView
+                            android:id="@+id/iconBatt2"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:src="@drawable/ic_battery_unknown"
+                            android:visibility="gone"
+                            android:contentDescription="Batería dispositivo 2" />
+
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/dispBluetoothNom2"
@@ -536,30 +546,6 @@
                             android:inputType="number"
                             android:enabled="false"
                             android:text="20" />
-                    </LinearLayout>
-
-                    <!-- Batería -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:layout_marginTop="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Batería:"
-                            android:textAppearance="?attr/textAppearanceLabelMedium"
-                            android:textColor="?attr/colorOnSurfaceVariant" />
-
-                        <EditText
-                            android:id="@+id/editTextNivelBatt2"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:enabled="false" />
                     </LinearLayout>
 
                     <TextView

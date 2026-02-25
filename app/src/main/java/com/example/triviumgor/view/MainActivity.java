@@ -11,6 +11,8 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -18,6 +20,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -76,7 +79,7 @@ public class MainActivity extends AppCompatActivity
     private Button Conexion, InicioPulsos, FinPulsos;
     private Button AmpliInc1, AmpliDec1, AmpliInc2, AmpliDec2;
     private EditText Param3, Param4, Param5;
-    private EditText NivelBatt;
+    private ImageView iconBatt1;
     private TextView OtroTexto6;
     private TextView dispBluetoothNom1;
 
@@ -86,7 +89,7 @@ public class MainActivity extends AppCompatActivity
     private Button Conexion2, InicioPulsos2, FinPulsos2;
     private Button AmpliInc3, AmpliDec3, AmpliInc4, AmpliDec4;
     private EditText Param10, Param12, Param13;
-    private EditText NivelBatt2;
+    private ImageView iconBatt2;
     private TextView OtroTexto7;
     private TextView dispBluetoothNom2;
 
@@ -94,6 +97,11 @@ public class MainActivity extends AppCompatActivity
     // VISTAS - Comunes
     // ========================
     private Button Disconnect;
+
+    // Debounce para ignorar ACL_DISCONNECTED espurios tras reconexión rápida
+    private boolean recentlyConnected1 = false;
+    private boolean recentlyConnected2 = false;
+    private final Handler aclDebounceHandler = new Handler(Looper.getMainLooper());
     private Button ConectarPaciente, ventanaPacienteBtn, btnVerLista;
     private TextView nombreDispositivoPac1, nombreDispositivoPac2;
     private TextView Otrotexto1, Otrotexto2, Otrotexto3, Otrotexto4, OtroTexto5;
@@ -129,6 +137,11 @@ public class MainActivity extends AppCompatActivity
 
             // Dispositivo 1
             if (mac.equals(dispositivo1.getAddress()) && dispositivo1.isConnected()) {
+                // Ignorar si acabamos de reconectar (evento espurio de conexión anterior)
+                if (recentlyConnected1) {
+                    Log.d(TAG, "Ignorando ACL_DISCONNECTED espurio para dispositivo 1 (recién conectado)");
+                    return;
+                }
                 tratamientoController.finalizarSesion(dispositivo1);
                 dispositivo1.resetCompleto();
 
@@ -137,6 +150,7 @@ public class MainActivity extends AppCompatActivity
                     Conexion.setText("Conectar");
                     dispBluetoothNom1.setText("");
                     dispBluetoothNom1.setVisibility(View.GONE);
+                    iconBatt1.setVisibility(View.GONE);
                     InicioPulsos.setEnabled(false);
                     UIHelper.setButtonColor(InicioPulsos, UIHelper.COLOR_DESHABILITADO);
                     InicioPulsos.setText("Iniciar");
@@ -145,6 +159,10 @@ public class MainActivity extends AppCompatActivity
             }
             // Dispositivo 2
             else if (mac.equals(dispositivo2.getAddress()) && dispositivo2.isConnected()) {
+                if (recentlyConnected2) {
+                    Log.d(TAG, "Ignorando ACL_DISCONNECTED espurio para dispositivo 2 (recién conectado)");
+                    return;
+                }
                 tratamientoController.finalizarSesion(dispositivo2);
                 dispositivo2.resetCompleto();
 
@@ -153,6 +171,7 @@ public class MainActivity extends AppCompatActivity
                     Conexion2.setText("Conectar");
                     dispBluetoothNom2.setText("");
                     dispBluetoothNom2.setVisibility(View.GONE);
+                    iconBatt2.setVisibility(View.GONE);
                     InicioPulsos2.setEnabled(false);
                     UIHelper.setButtonColor(InicioPulsos2, UIHelper.COLOR_DESHABILITADO);
                     InicioPulsos2.setText("Iniciar");
@@ -244,7 +263,7 @@ public class MainActivity extends AppCompatActivity
         Param3 = findViewById(R.id.editTextNumberDecimal3);
         Param4 = findViewById(R.id.editTextNumberDecimal4);
         Param5 = findViewById(R.id.editTextNumberDecimal5);
-        NivelBatt = findViewById(R.id.editTextNivelBatt);
+        iconBatt1 = findViewById(R.id.iconBatt1);
         OtroTexto6 = findViewById(R.id.OtroTexto6);
         dispBluetoothNom1 = findViewById(R.id.dispBluetoothNom1);
 
@@ -255,7 +274,7 @@ public class MainActivity extends AppCompatActivity
         Param10 = findViewById(R.id.editTextNumberDecimal10);
         Param12 = findViewById(R.id.editTextNumberDecimal12);
         Param13 = findViewById(R.id.editTextNumberDecimal13);
-        NivelBatt2 = findViewById(R.id.editTextNivelBatt2);
+        iconBatt2 = findViewById(R.id.iconBatt2);
         OtroTexto7 = findViewById(R.id.OtroTexto7);
         dispBluetoothNom2 = findViewById(R.id.dispBluetoothNom2);
 
@@ -367,6 +386,13 @@ public class MainActivity extends AppCompatActivity
                     String nomBT = nombre + "(" + addr.substring(addr.length() - 5) + ")";
                     dispBluetoothNom1.setText(nomBT);
                     dispBluetoothNom1.setVisibility(View.VISIBLE);
+                    iconBatt1.setImageResource(R.drawable.ic_battery_unknown);
+                    iconBatt1.setVisibility(View.VISIBLE);
+                    tratamientoController.solicitarBateria(dispositivo1);
+
+                    // Proteger contra ACL_DISCONNECTED espurio de conexión anterior
+                    recentlyConnected1 = true;
+                    aclDebounceHandler.postDelayed(() -> recentlyConnected1 = false, 3000);
                 });
             }, error -> {
                 runOnUiThread(() -> {
@@ -401,6 +427,13 @@ public class MainActivity extends AppCompatActivity
                     String nomBT = nombre + "(" + addr.substring(addr.length() - 5) + ")";
                     dispBluetoothNom2.setText(nomBT);
                     dispBluetoothNom2.setVisibility(View.VISIBLE);
+                    iconBatt2.setImageResource(R.drawable.ic_battery_unknown);
+                    iconBatt2.setVisibility(View.VISIBLE);
+                    tratamientoController.solicitarBateria(dispositivo2);
+
+                    // Proteger contra ACL_DISCONNECTED espurio de conexión anterior
+                    recentlyConnected2 = true;
+                    aclDebounceHandler.postDelayed(() -> recentlyConnected2 = false, 3000);
                 });
             }, error -> {
                 runOnUiThread(() -> {
@@ -539,26 +572,26 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onBateriaActualizada(int dispositivoNum, int valorCarga, int nivel, String textoNivel) {
         runOnUiThread(() -> {
-            int color;
+            int iconRes;
             switch (nivel) {
                 case TratamientoController.NIVEL_ALTA:
-                    color = Color.GREEN;
+                    iconRes = R.drawable.ic_battery_full;
                     break;
                 case TratamientoController.NIVEL_MEDIA:
-                    color = Color.YELLOW;
+                    iconRes = R.drawable.ic_battery_medium;
                     break;
                 default:
-                    color = Color.parseColor("#FF0000");
+                    iconRes = R.drawable.ic_battery_low;
                     break;
             }
 
             if (dispositivoNum == 1) {
-                NivelBatt.setTextColor(color);
-                NivelBatt.setText(textoNivel);
+                iconBatt1.setImageResource(iconRes);
+                iconBatt1.setVisibility(View.VISIBLE);
                 OtroTexto6.setText(String.valueOf(valorCarga));
             } else {
-                NivelBatt2.setTextColor(color);
-                NivelBatt2.setText(textoNivel);
+                iconBatt2.setImageResource(iconRes);
+                iconBatt2.setVisibility(View.VISIBLE);
                 OtroTexto7.setText(String.valueOf(valorCarga));
             }
         });
@@ -754,10 +787,10 @@ public class MainActivity extends AppCompatActivity
                     String seleccion = opciones[which];
                     if (seleccion.equals("Dispositivo 1")) {
                         desconectarDispositivo(dispositivo1, Conexion, InicioPulsos,
-                                FinPulsos, dispBluetoothNom1);
+                                FinPulsos, dispBluetoothNom1, iconBatt1);
                     } else {
                         desconectarDispositivo(dispositivo2, Conexion2, InicioPulsos2,
-                                FinPulsos2, dispBluetoothNom2);
+                                FinPulsos2, dispBluetoothNom2, iconBatt2);
                     }
                 })
                 .setNegativeButton("Cancelar", null)
@@ -765,7 +798,8 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void desconectarDispositivo(DispositivoState disp, Button btnConexion,
-                                        Button btnInicio, Button btnFin, TextView lblNombre) {
+                                        Button btnInicio, Button btnFin, TextView lblNombre,
+                                        ImageView iconBatt) {
         tratamientoController.finalizarSesion(disp);
         try {
             if (disp.getBtSocket() != null) disp.getBtSocket().close();
@@ -782,6 +816,7 @@ public class MainActivity extends AppCompatActivity
         UIHelper.resetButtonToDefault(btnFin);
         lblNombre.setText("");
         lblNombre.setVisibility(View.GONE);
+        iconBatt.setVisibility(View.GONE);
     }
 
     private void mostrarDialogoGuardar2Dispositivos() {

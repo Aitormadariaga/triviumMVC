@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="28dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Battery terminal -->
+    <path
+        android:fillColor="#9E9E9E"
+        android:pathData="M14,2h-4v2h4z" />
+    <!-- Body outline -->
+    <path
+        android:fillColor="#9E9E9E"
+        android:pathData="M15.67,4H8.33C7.6,4 7,4.6 7,5.33v15.33C7,21.4 7.6,22 8.33,22h7.33C16.4,22 17,21.4 17,20.67V5.33C17,4.6 16.4,4 15.67,4zM15,20H9V6h6v14z" />
+    <!-- Question mark -->
+    <path
+        android:fillColor="#9E9E9E"
+        android:pathData="M11.07,10.32c0.18,-0.63 0.81,-1.12 1.43,-1.12 0.71,0 1.28,0.57 1.28,1.28 0,1.28 -1.93,1.12 -1.93,3.12h1.5c0,-1.41 1.93,-1.56 1.93,-3.12 0,-1.53 -1.25,-2.78 -2.78,-2.78 -1.18,0 -2.18,0.73 -2.58,1.77l1.15,0.85zM11.25,15.5h1.5v1.5h-1.5z" />
+</vector>
