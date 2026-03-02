@@ -180,12 +180,12 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 actualizarListaPacientes();
                 for (int i = 0; i < pacientesNombres.length; i++) {
                     if (nombreFiltrado.equals(pacientesNombres[i])) {
-                        pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(i, idUsuarioActual);
+                        pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(i);
                         break;
                     }
                 }
             } else {
-                pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(position, idUsuarioActual);
+                pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(position);
             }
 
             if (pacienteSeleccionadoId != -1) {
@@ -302,7 +302,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     // ========================
 
     private void actualizarListaPacientes() {
-        pacientesNombres = pacienteController.obtenerListaPacientesFormateada(idUsuarioActual);
+        pacientesNombres = pacienteController.obtenerListaPacientesFormateada(); //ojo
         vieLista.setAdapter(new ArrayAdapter<>(this,
                 android.R.layout.simple_list_item_1, pacientesNombres));
         filtrado = false;
@@ -472,7 +472,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                     String filtro = editText.getText().toString().toLowerCase().trim();
                     String campo = spinner.getSelectedItem().toString();
 
-                    List<String> resultados = pacienteController.filtrarPacientes(filtro, campo, idUsuarioActual);
+                    List<String> resultados = pacienteController.filtrarPacientes(filtro, campo);
                     vieLista.setAdapter(new ArrayAdapter<>(this,
                             android.R.layout.simple_list_item_1, resultados));
                     filtrado = true;
