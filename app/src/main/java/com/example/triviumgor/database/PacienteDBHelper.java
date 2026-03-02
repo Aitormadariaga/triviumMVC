@@ -17,7 +17,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     // ⚠️ IMPORTANTE: Se incrementó la versión de 2 a 3 para que onUpgrade()
     //    cree la nueva tabla usuario_paciente en dispositivos ya instalados.
     //si volvemos a modificar el esquema subirías a 4 y añadirías un bloque if (oldVersion < 3) en onUpgrade()
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 4;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -57,12 +57,19 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String COLUMN_INTENSIDAD_SESION = "intensidad";
     public static final String COLUMN_TIEMPO_SESION = "tiempo";
 
+
     // NUEVA Tabla USUARIO_PACIENTE (relación N:M)
     public static final String TABLE_USUARIO_PACIENTE = "usuario_paciente";
     public static final String COLUMN_UP_USUARIO_ID = "id_usuario";
     public static final String COLUMN_UP_PACIENTE_ID = "id_paciente";
     public static final String COLUMN_UP_ROL = "rol";               // "creador" o "asignado"
     public static final String COLUMN_UP_FECHA = "fecha_asignacion";
+
+
+    //Tabla USUARIO_SESION
+    public static final String TABLE_USUARIO_SESION = "usuario_sesion";
+    public static final String COLUMN_US_USUARIO_ID = "id_usuario";
+    public static final String COLUMN_US_SESION_ID = "id_paciente";
 
     // Sentencia SQL para crear la tabla
     private static final String SQL_CREATE_PACIENTES =
@@ -116,6 +123,16 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     TABLE_USUARIOS + "(" + COLUMN_USUARIO_ID + "), " +
                     "FOREIGN KEY (" + COLUMN_UP_PACIENTE_ID + ") REFERENCES " +
                     TABLE_PACIENTES + "(" + COLUMN_ID + "))";
+
+    private static final String SQL_CREATE_USUARIO_SESION =
+            "CREATE TABLE" + TABLE_USUARIO_SESION + " (" +
+                    COLUMN_US_USUARIO_ID + "INTEGER NOT NULL, " +
+                    COLUMN_US_SESION_ID + "INTEGER NOT NULL, " +
+                    "PRIMARY KEY (" + COLUMN_US_USUARIO_ID + ", " + COLUMN_US_SESION_ID + "), " +
+                    "FOREIGN KEY (" + COLUMN_US_USUARIO_ID + ") REFERENCES " +
+                    TABLE_USUARIOS + "(" + COLUMN_USUARIO_ID + "), " +
+                    "FOREIGN KEY (" + COLUMN_US_SESION_ID + ") REFERENCES " +
+                    TABLE_SESIONES + "(" + COLUMN_SESION_ID + "))";
 
     // Constructor modificado
     public PacienteDBHelper(Context context) {
@@ -211,6 +228,15 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             Log.d("PacienteDBHelper", "Tabla usuario_paciente creada en migración");
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error al crear tabla usuario_paciente: " + e.getMessage());
+        }
+    }
+    if (oldVersion < 4) {
+        // Migración v3 → v4: crear tabla usuario_sesion
+        try {
+            db.execSQL(SQL_CREATE_USUARIO_SESION);
+            Log.d("PacienteDBHelper", "Tabla usuario_sesion creada en migración");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error al crear tabla usuario_sesion: " + e.getMessage());
         }
     }
 }

@@ -702,5 +702,94 @@ public class PacienteDataManager {
         }
     }
 
+    // ======= MÉTODOS PARA USUARIO_SESION =======
+
+    /**
+     * Asigna un usuario a una sesión (registra quién realizó/supervisó la sesión)
+     * @param idUsuario ID del usuario
+     * @param idSesion  ID de la sesión
+     * @return true si se insertó correctamente
+     */
+    public boolean asignarUsuarioSesion(int idUsuario, int idSesion) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+            String fechaActual = sdf.format(new Date());
+
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_US_USUARIO_ID, idUsuario);
+            values.put(PacienteDBHelper.COLUMN_US_SESION_ID,  idSesion);
+            //values.put(PacienteDBHelper.COLUMN_US_FECHA,      fechaActual);
+
+            long id = database.insertOrThrow(PacienteDBHelper.TABLE_USUARIO_SESION, null, values);
+            return id != -1;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al asignar usuario a sesión: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Obtiene los IDs de sesión asociados a un usuario
+     * @param idUsuario ID del usuario
+     * @return Lista de IDs de sesión
+     */
+    public List<Integer> obtenerSesionesPorUsuario(int idUsuario) {
+        List<Integer> sesionIds = new ArrayList<>();
+        Cursor cursor = database.query(
+                PacienteDBHelper.TABLE_USUARIO_SESION,
+                new String[]{PacienteDBHelper.COLUMN_US_SESION_ID},
+                PacienteDBHelper.COLUMN_US_USUARIO_ID + " = ?",
+                new String[]{String.valueOf(idUsuario)},
+                null, null, null
+        );
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                sesionIds.add(cursor.getInt(0));
+            }
+            cursor.close();
+        }
+        return sesionIds;
+    }
+
+    /**
+     * Obtiene los IDs de usuario asignados a una sesión
+     * @param idSesion ID de la sesión
+     * @return Lista de IDs de usuario
+     */
+    public List<Integer> obtenerUsuariosPorSesion(int idSesion) {
+        List<Integer> usuarioIds = new ArrayList<>();
+        Cursor cursor = database.query(
+                PacienteDBHelper.TABLE_USUARIO_SESION,
+                new String[]{PacienteDBHelper.COLUMN_US_USUARIO_ID},
+                PacienteDBHelper.COLUMN_US_SESION_ID + " = ?",
+                new String[]{String.valueOf(idSesion)},
+                null, null, null
+        );
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                usuarioIds.add(cursor.getInt(0));
+            }
+            cursor.close();
+        }
+        return usuarioIds;
+    }
+
+    /**
+     * Elimina la relación entre un usuario y una sesión
+     */
+    public boolean eliminarRelacionUsuarioSesion(int idUsuario, int idSesion) {
+        try {
+            return database.delete(
+                    PacienteDBHelper.TABLE_USUARIO_SESION,
+                    PacienteDBHelper.COLUMN_US_USUARIO_ID + " = ? AND " +
+                            PacienteDBHelper.COLUMN_US_SESION_ID  + " = ?",
+                    new String[]{String.valueOf(idUsuario), String.valueOf(idSesion)}
+            ) > 0;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al eliminar relación usuario-sesión: " + e.getMessage());
+            return false;
+        }
+    }
+
 
 }
