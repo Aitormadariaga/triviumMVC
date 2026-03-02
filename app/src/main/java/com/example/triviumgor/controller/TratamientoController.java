@@ -353,13 +353,15 @@ public class TratamientoController {
         public void cancel() {
             running = false;
             dispositivo.setBattMon(false);
+            /* Esque cerrar el stream causa que  el socket BT queda en un estado roto: el dispositivo sigue "conectado" según connected = true, pero cualquier intento posterior de leer o escribir lanza IOException.
+                esto es pq  myInputStream es el mismo objeto que está guardado en DispositivoState
             try {
                 if (myInputStream != null) {
                     myInputStream.close(); // cierra SOLO el stream de esta conexión
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-            }
+            }*/
         }
 
         @Override
