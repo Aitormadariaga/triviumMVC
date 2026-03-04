@@ -197,11 +197,22 @@ public class BluetoothController {
      */
     @SuppressLint("MissingPermission")
     private boolean estaConectadoEnOtroSlot(BluetoothDevice device, DispositivoState dispositivoActual) {
-        if (dispositivo1Ref == null || dispositivo2Ref == null) return false;
+        // Determinar cuál es el "otro" slot
+        DispositivoState otro;
+        if (dispositivoActual == dispositivo1Ref) {
+            otro = dispositivo2Ref;
+        } else if (dispositivoActual == dispositivo2Ref) {
+            otro = dispositivo1Ref;
+        } else {
+            return false;
+        }
 
-        DispositivoState otro = (dispositivoActual.getNumero() == 1) ? dispositivo2Ref : dispositivo1Ref;
-        return otro.isConnected() && otro.getBtDevice() != null
-                && otro.getBtDevice().getAddress().equals(device.getAddress());
+        // Si el otro slot no existe o no está conectado, no hay conflicto
+        if (otro == null || !otro.isConnected() || otro.getBtDevice() == null) {
+            return false;
+        }
+
+        return otro.getBtDevice().getAddress().equals(device.getAddress());
     }
 
     /**

@@ -204,6 +204,8 @@ public class MainActivity extends AppCompatActivity
         }
 
         bluetoothController = new BluetoothController(this);
+        bluetoothController.setDispositivoRefs(dispositivo1, dispositivo2);
+
         tratamientoController = new TratamientoController(this);
         pacienteController = new PacienteController(dataManager);
         sesionController = new SesionController(dataManager);
