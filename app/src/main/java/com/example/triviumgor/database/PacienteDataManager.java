@@ -107,6 +107,21 @@ public class PacienteDataManager {
     }
 
     /**
+     * Obtiene información del usuario por Id
+     * @param id Integer que define el id del usuario
+     * @return Cursor con los datos del usuario o null
+     */
+    public Cursor obtenerUsuarioPorId(int id) {
+        return database.query(
+                PacienteDBHelper.TABLE_USUARIOS,
+                null,
+                PacienteDBHelper.COLUMN_USUARIO_ID + " = ?",
+                new String[]{String.valueOf(id)},
+                null, null, null
+        );
+    }
+
+    /**
      * Crea un nuevo usuario en la base de datos
      * @param username Nombre de usuario (único)
      * @param password Contraseña en texto plano
@@ -788,6 +803,20 @@ public class PacienteDataManager {
         } catch (Exception e) {
             Log.e("PacienteDataManager", "Error al eliminar relación usuario-sesión: " + e.getMessage());
             return false;
+        }
+    }
+
+
+
+    public void eliminarRelacionesPorSesion(int idSesion) {
+        try {
+            database.delete(
+                    PacienteDBHelper.TABLE_USUARIO_SESION,
+                    PacienteDBHelper.COLUMN_US_SESION_ID + " = ?",
+                    new String[]{String.valueOf(idSesion)}
+            );
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al eliminar relaciones de sesión: " + e.getMessage());
         }
     }
 

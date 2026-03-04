@@ -41,6 +41,7 @@ import com.example.triviumgor.controller.UsuarioController;
 import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.DispositivoState;
 import com.example.triviumgor.model.Paciente;
+import com.example.triviumgor.model.Usuario;
 import com.example.triviumgor.util.UIHelper;
 
 import java.util.UUID;
@@ -455,6 +456,7 @@ public class MainActivity extends AppCompatActivity
             if (dispositivo1.isClockStopped() && DNIpaciente != null && !DNIpaciente.isEmpty()) {
                 registrarSesionEnDB(DNIpaciente, dispBluetoothNom1.getText().toString(),
                         intensidad, duracion);
+
             }
 
             boolean esNueva = tratamientoController.iniciarOActualizarSesion(
@@ -634,7 +636,14 @@ public class MainActivity extends AppCompatActivity
                                      int intensidad, int duracion) {
         Paciente pac = buscarPacientePorDNI(dniPaciente);
         if (pac != null) {
-            long error = sesionController.registrarSesion(pac.getID(), nombreDisp, intensidad, duracion);
+            long error = (long)-1;
+            if (usuarioController.haySesionActiva()){
+                int idUsuarioActual = usuarioController.getUsuarioActual().getId();
+                error = sesionController.registrarSesion(pac.getID(), idUsuarioActual, nombreDisp, intensidad, duracion);
+            }else {
+                error = sesionController.registrarSesion(pac.getID(), nombreDisp, intensidad, duracion);
+            }
+
             if (error == (long)-1){
                 Toast.makeText(this, "Hubo error al guardar la Sesion en la BBDD", Toast.LENGTH_LONG);
             }

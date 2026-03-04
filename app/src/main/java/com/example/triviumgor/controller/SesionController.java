@@ -55,6 +55,16 @@ public class SesionController {
      * Registra una nueva sesión de tratamiento.
      * @return ID de la sesión creada, o -1 si hubo error
      */
+
+    public long registrarSesion(int idPaciente, int idUsuario, String dispositivo, int intensidad, int tiempo) {
+        long idSesion = dataManager.registrarSesion(idPaciente, dispositivo, intensidad, tiempo);
+        if (idSesion != -1) {
+            dataManager.asignarUsuarioSesion(idUsuario, (int) idSesion);
+        }
+        return idSesion;
+    }
+
+    //sobrecarga
     public long registrarSesion(int idPaciente, String dispositivo, int intensidad, int tiempo) {
         return dataManager.registrarSesion(idPaciente, dispositivo, intensidad, tiempo);
     }
@@ -85,7 +95,8 @@ public class SesionController {
      * Elimina una sesión por su ID.
      */
     public boolean eliminarSesion(int idSesion) {
-        return dataManager.eliminarSesion(idSesion);
+        dataManager.eliminarRelacionesPorSesion(idSesion); // borra todas las relaciones de usuario-sesion, haya o no usuario
+        return dataManager.eliminarSesion(idSesion); //hay que primero borrar las relaciones y despues la sesion, se puede hacer esto en sqlite con cascade
     }
 
     // ========================

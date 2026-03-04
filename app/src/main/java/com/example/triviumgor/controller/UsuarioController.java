@@ -332,6 +332,22 @@ public class UsuarioController {
         }
     }
 
+    public Usuario obtenerUsuarioPorId(int id) {
+        Cursor cursor = null;
+        try {
+            cursor = dataManager.obtenerUsuarioPorId(id);
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursorAUsuario(cursor);
+            }
+            return null;
+        } catch (Exception e) {
+            Log.e(TAG, "Error obtener usuario " + id + ": " + e.getMessage());
+            return null;
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
+
     // ========================
     // CONTROL DE PERMISOS
     // ========================

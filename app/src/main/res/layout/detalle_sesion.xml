@@ -122,6 +122,28 @@
             android:textColor="?attr/colorOnSurface" />
     </LinearLayout>
 
+    <!-- Usuario Nombre -->
+    <LinearLayout
+        android:id="@+id/layoutTratado"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingVertical="6dp">
+        <TextView
+            android:layout_width="120dp"
+            android:layout_height="wrap_content"
+            android:text="Tratado por: "
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+        <TextView
+            android:id="@+id/tvTratado"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurface" />
+    </LinearLayout>
+
     <!-- Botones -->
     <LinearLayout
         android:layout_width="match_parent"

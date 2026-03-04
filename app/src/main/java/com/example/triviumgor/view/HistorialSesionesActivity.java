@@ -1,5 +1,6 @@
 package com.example.triviumgor.view;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
@@ -8,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,8 +20,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.triviumgor.R;
 import com.example.triviumgor.controller.SesionController;
+import com.example.triviumgor.controller.UsuarioController;
 import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.Sesion;
+import com.example.triviumgor.model.Usuario;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +38,7 @@ public class HistorialSesionesActivity extends AppCompatActivity {
 
     private PacienteDataManager dataManager;
     private SesionController sesionController;
+    private UsuarioController usuarioController;
     private List<Sesion> sesiones;
     private List<SesionController.GrupoDia> grupos;
     private int pacienteId;
@@ -74,6 +79,7 @@ public class HistorialSesionesActivity extends AppCompatActivity {
         }
 
         sesionController = new SesionController(dataManager);
+        usuarioController = new UsuarioController(this, dataManager);
         cargarSesiones();
 
         btnVolver.setOnClickListener(v -> {
@@ -133,19 +139,30 @@ public class HistorialSesionesActivity extends AppCompatActivity {
         View dialogView = inflater.inflate(R.layout.detalle_sesion, null);
         builder.setView(dialogView);
 
+        @SuppressLint("MissingInflatedId") LinearLayout layoutT = dialogView.findViewById(R.id.layoutTratado);
+
         TextView tvFechaCompleta = dialogView.findViewById(R.id.tvFechaCompleta);
         TextView tvHora = dialogView.findViewById(R.id.tvHora);
         TextView tvDispositivo = dialogView.findViewById(R.id.tvDispositivo);
         TextView tvIntensidad = dialogView.findViewById(R.id.tvIntensidad);
         TextView tvTiempo = dialogView.findViewById(R.id.tvTiempo);
+        TextView tvTratado = dialogView.findViewById(R.id.tvTratado);
         Button btnCerrar = dialogView.findViewById(R.id.btnCerrar);
         Button btnBorrarS = dialogView.findViewById(R.id.tvBTNBorrar);
+
+        String listaNomUsuario = getUsuariosPorSesion(sesion);
+        if (listaNomUsuario == ""){
+            layoutT.setVisibility(View.GONE);
+        }else{
+            tvTratado.setText(listaNomUsuario);
+        }
 
         tvFechaCompleta.setText(sesionController.formatearFecha(sesion.getFecha()));
         tvHora.setText(sesionController.formatearHora(sesion.getFecha()));
         tvDispositivo.setText(sesion.getDispositivo());
         tvIntensidad.setText(String.valueOf(sesion.getIntensidad()));
         tvTiempo.setText(sesion.getTiempo() + " minutos");
+
 
         final AlertDialog dialog = builder.create();
 
@@ -254,5 +271,27 @@ public class HistorialSesionesActivity extends AppCompatActivity {
                 tvInfo = v.findViewById(R.id.tvInfoSesion);
             }
         }
+    }
+
+    // =========================================================
+    //  Funciones Extras Para Ayudar
+    // =========================================================
+
+    private String getUsuariosPorSesion (Sesion sesion){
+        List<Integer> listaUsuarioId = dataManager.obtenerUsuariosPorSesion(sesion.getId());
+        String listaUsuarios = "";
+
+        if (!listaUsuarioId.isEmpty()){
+            for (int id: listaUsuarioId) {
+                String nombre = usuarioController.obtenerUsuarioPorId(id).getNombreCompleto();
+                if (listaUsuarios != ""){
+                    listaUsuarios += ", ";
+                }
+                listaUsuarios += nombre;
+            }
+        }
+
+        return listaUsuarios;
+
     }
 }

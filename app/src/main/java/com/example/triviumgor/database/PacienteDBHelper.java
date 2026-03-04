@@ -125,9 +125,9 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     TABLE_PACIENTES + "(" + COLUMN_ID + "))";
 
     private static final String SQL_CREATE_USUARIO_SESION =
-            "CREATE TABLE" + TABLE_USUARIO_SESION + " (" +
-                    COLUMN_US_USUARIO_ID + "INTEGER NOT NULL, " +
-                    COLUMN_US_SESION_ID + "INTEGER NOT NULL, " +
+            "CREATE TABLE " + TABLE_USUARIO_SESION + " (" +
+                    COLUMN_US_USUARIO_ID + " INTEGER NOT NULL, " +
+                    COLUMN_US_SESION_ID + " INTEGER NOT NULL, " +
                     "PRIMARY KEY (" + COLUMN_US_USUARIO_ID + ", " + COLUMN_US_SESION_ID + "), " +
                     "FOREIGN KEY (" + COLUMN_US_USUARIO_ID + ") REFERENCES " +
                     TABLE_USUARIOS + "(" + COLUMN_USUARIO_ID + "), " +
@@ -187,6 +187,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_SESIONES);
         db.execSQL(SQL_CREATE_USUARIOS);
         db.execSQL(SQL_CREATE_USUARIO_PACIENTE);
+        db.execSQL(SQL_CREATE_USUARIO_SESION);
 
         // Insertar usuario administrador por defecto
         insertarUsuarioAdmin(db);
@@ -229,6 +230,7 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error al crear tabla usuario_paciente: " + e.getMessage());
         }
+
     }
     if (oldVersion < 4) {
         // Migración v3 → v4: crear tabla usuario_sesion
