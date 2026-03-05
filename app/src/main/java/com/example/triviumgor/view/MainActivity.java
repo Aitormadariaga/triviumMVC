@@ -293,6 +293,10 @@ public class MainActivity extends AppCompatActivity
         AmpliInc1 = findViewById(R.id.buttonAmpliInc);
         AmpliDec1 = findViewById(R.id.buttonAmpliDec);
 
+        //Botones de amplitud (dispositivo 2)
+        AmpliInc3 = findViewById(R.id.buttonAmpliInc3);
+        AmpliDec3 = findViewById(R.id.buttonAmpliDec3);
+
         // Estado inicial
         InicioPulsos.setEnabled(false);
         InicioPulsos2.setEnabled(false);
@@ -521,6 +525,10 @@ public class MainActivity extends AppCompatActivity
         // AMPLITUD +/- Dispositivo 1
         AmpliInc1.setOnClickListener(v -> ajustarIntensidad(Param3, 1, 19));
         AmpliDec1.setOnClickListener(v -> ajustarIntensidad(Param3, -1, 1));
+
+        // AMPLITUD +/- Dispositivo 2
+        AmpliInc3.setOnClickListener(v -> ajustarIntensidad(Param10, 1, 19));
+        AmpliDec3.setOnClickListener(v -> ajustarIntensidad(Param10, -1, 1));
 
         // PACIENTE
         ventanaPacienteBtn.setOnClickListener(v -> {
