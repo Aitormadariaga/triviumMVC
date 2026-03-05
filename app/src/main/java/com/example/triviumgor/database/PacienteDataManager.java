@@ -379,13 +379,15 @@ public class PacienteDataManager {
 
     // ======= MÉTODOS PARA PACIENTES =======
 
-    public long nuevoPaciente(String dni, String nombre, String apellido1, String apellido2,
+    public long nuevoPaciente(String dni, String nombre, String apellido1, String apellido2, int edad, String genero,
                               String patologia,String medicacion, int intensidad, int tiempo, String cic) {
         ContentValues values = new ContentValues();
         values.put(PacienteDBHelper.COLUMN_DNI, dni);
         values.put(PacienteDBHelper.COLUMN_NOMBRE, nombre);
         values.put(PacienteDBHelper.COLUMN_APELLIDO1, apellido1);
         values.put(PacienteDBHelper.COLUMN_APELLIDO2, apellido2);
+        values.put(PacienteDBHelper.COLUMN_EDAD, edad);
+        values.put(PacienteDBHelper.COLUMN_GENERO, genero); //no se si cambiarlo
         values.put(PacienteDBHelper.COLUMN_PATOLOGIA, patologia);
         values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, medicacion);
         values.put(PacienteDBHelper.COLUMN_INTENSIDAD, intensidad);
@@ -419,8 +421,8 @@ public class PacienteDataManager {
                 null
         );
     }
-    public int actualizarPaciente(int id, String dni, String nombre, String apellido1,
-                                  String apellido2, String patologia, String medicacion, int intensidad,
+    public int actualizarPaciente(int id, String dni, String nombre, String apellido1, String apellido2, int edad, String genero,
+                                  String patologia, String medicacion, int intensidad,
                                   int tiempo, String cic) {
         try {
             ContentValues values = new ContentValues();
@@ -428,6 +430,8 @@ public class PacienteDataManager {
             values.put(PacienteDBHelper.COLUMN_NOMBRE, nombre);
             values.put(PacienteDBHelper.COLUMN_APELLIDO1, apellido1);
             values.put(PacienteDBHelper.COLUMN_APELLIDO2, apellido2);
+            values.put(PacienteDBHelper.COLUMN_EDAD, edad);
+            values.put(PacienteDBHelper.COLUMN_GENERO, genero); //no se si cambiarlo
             values.put(PacienteDBHelper.COLUMN_PATOLOGIA, patologia);
             values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, medicacion);
             values.put(PacienteDBHelper.COLUMN_INTENSIDAD, intensidad);
@@ -521,13 +525,15 @@ public class PacienteDataManager {
 
     //para 1 paciente 2 dispositivos
 
-    public long nuevoPaciente2disp(String dni, String nombre, String apellido1, String apellido2,
+    public long nuevoPaciente2disp(String dni, String nombre, String apellido1, String apellido2, int edad, String genero,
                                    String patologia,String medicacion, int intensidad, int tiempo, int intensidad2, int tiempo2, String cic) {
         ContentValues values = new ContentValues();
         values.put(PacienteDBHelper.COLUMN_DNI, dni);
         values.put(PacienteDBHelper.COLUMN_NOMBRE, nombre);
         values.put(PacienteDBHelper.COLUMN_APELLIDO1, apellido1);
         values.put(PacienteDBHelper.COLUMN_APELLIDO2, apellido2);
+        values.put(PacienteDBHelper.COLUMN_EDAD, edad);
+        values.put(PacienteDBHelper.COLUMN_GENERO, genero); //no se si cambiarlo
         values.put(PacienteDBHelper.COLUMN_PATOLOGIA, patologia);
         values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, medicacion);
         values.put(PacienteDBHelper.COLUMN_INTENSIDAD, intensidad);
@@ -538,8 +544,8 @@ public class PacienteDataManager {
 
         return database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
     }
-    public int actualizarPaciente2disp(int id, String dni, String nombre, String apellido1,
-                                       String apellido2, String patologia, String medicacion, int intensidad,
+    public int actualizarPaciente2disp(int id, String dni, String nombre, String apellido1, String apellido2, int edad, String genero,
+                                       String patologia, String medicacion, int intensidad,
                                        int tiempo,int intensidad2, int tiempo2, String cic) {
         try {
             ContentValues values = new ContentValues();
@@ -547,6 +553,8 @@ public class PacienteDataManager {
             values.put(PacienteDBHelper.COLUMN_NOMBRE, nombre);
             values.put(PacienteDBHelper.COLUMN_APELLIDO1, apellido1);
             values.put(PacienteDBHelper.COLUMN_APELLIDO2, apellido2);
+            values.put(PacienteDBHelper.COLUMN_EDAD, edad);
+            values.put(PacienteDBHelper.COLUMN_GENERO, genero); //no se si cambiarlo
             values.put(PacienteDBHelper.COLUMN_PATOLOGIA, patologia);
             values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, medicacion);
             values.put(PacienteDBHelper.COLUMN_INTENSIDAD, intensidad);

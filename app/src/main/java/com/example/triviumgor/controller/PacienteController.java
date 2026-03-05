@@ -113,7 +113,7 @@ public class PacienteController {
      * @param idUsuarioCreador ID del usuario logueado que está creando el paciente.
      *                         Pasar -1 si no se quiere vincular (ej: admin sin restricciones).
      */
-    public Resultado guardarPaciente(int idUsuarioCreador, String dni, String nombre, String apellido1, String apellido2,
+    public Resultado guardarPaciente(int idUsuarioCreador, String dni, String nombre, String apellido1, String apellido2, String edadStr, String genero,
                                      String patologia, String medicacion,
                                      String intensidadStr, String tiempoStr, String cic) {
         // Validar campos obligatorios
@@ -130,15 +130,16 @@ public class PacienteController {
         }
 
         // Parsear intensidad y tiempo
-        int intensidad, tiempo;
+        int intensidad, tiempo, edad;
         try {
+            edad = Integer.parseInt(edadStr.trim());
             intensidad = Integer.parseInt(intensidadStr.trim());
             tiempo = Integer.parseInt(tiempoStr.trim());
         } catch (NumberFormatException e) {
             return Resultado.error("La intensidad y el tiempo deben ser números");
         }
 
-        long resultadoId = dataManager.nuevoPaciente(dni, nombre, apellido1, apellido2,
+        long resultadoId = dataManager.nuevoPaciente(dni, nombre, apellido1, apellido2, edad, genero,
                 patologia, medicacion, intensidad, tiempo, cic);
 
         if (resultadoId != -1) {
@@ -157,10 +158,10 @@ public class PacienteController {
      * Sobrecarga para mantener compatibilidad con código existente que no pasa idUsuario.
      * En ese caso no se crea vínculo (útil para administradores o migraciones).
      */
-    public Resultado guardarPaciente(String dni, String nombre, String apellido1, String apellido2,
+    public Resultado guardarPaciente(String dni, String nombre, String apellido1, String apellido2, String edadStr, String genero,
                                      String patologia, String medicacion,
                                      String intensidadStr, String tiempoStr, String cic) {
-        return guardarPaciente(-1, dni, nombre, apellido1, apellido2,
+        return guardarPaciente(-1, dni, nombre, apellido1, apellido2, edadStr, genero,
                 patologia, medicacion, intensidadStr, tiempoStr, cic);
     }
 
@@ -168,7 +169,7 @@ public class PacienteController {
      * Guarda un paciente nuevo con datos para 2 dispositivos y vincula al creador.
      */
     public Resultado guardarPaciente2disp(int idUsuarioCreador,
-                                          String dni, String nombre, String apellido1, String apellido2,
+                                          String dni, String nombre, String apellido1, String apellido2, String edadStr, String genero,
                                           String patologia, String medicacion,
                                           String intensidadStr, String tiempoStr,
                                           String intensidadStr2, String tiempoStr2, String cic) {
@@ -185,8 +186,9 @@ public class PacienteController {
             return Resultado.error("Ya existe un paciente con ese DNI");
         }
 
-        int intensidad, tiempo, intensidad2, tiempo2;
+        int intensidad, tiempo, intensidad2, tiempo2, edad;
         try {
+            edad = Integer.parseInt(edadStr.trim());
             intensidad = Integer.parseInt(intensidadStr.trim());
             tiempo = Integer.parseInt(tiempoStr.trim());
             intensidad2 = Integer.parseInt(intensidadStr2.trim());
@@ -195,7 +197,7 @@ public class PacienteController {
             return Resultado.error("La intensidad y el tiempo deben ser números");
         }
 
-        long resultadoId = dataManager.nuevoPaciente2disp(dni, nombre, apellido1, apellido2,
+        long resultadoId = dataManager.nuevoPaciente2disp(dni, nombre, apellido1, apellido2, edad, genero,
                 patologia, medicacion, intensidad, tiempo, intensidad2, tiempo2, cic);
 
         if (resultadoId != -1) {
@@ -209,19 +211,19 @@ public class PacienteController {
     }
 
     /** Sobrecarga de compatibilidad sin idUsuario */
-    public Resultado guardarPaciente2disp(String dni, String nombre, String apellido1, String apellido2,
+    public Resultado guardarPaciente2disp(String dni, String nombre, String apellido1, String apellido2, String edadStr, String genero,
                                           String patologia, String medicacion,
                                           String intensidadStr, String tiempoStr,
                                           String intensidadStr2, String tiempoStr2, String cic) {
-        return guardarPaciente2disp(-1, dni, nombre, apellido1, apellido2,
+        return guardarPaciente2disp(-1, dni, nombre, apellido1, apellido2, edadStr, genero,
                 patologia, medicacion, intensidadStr, tiempoStr, intensidadStr2, tiempoStr2, cic);
     }
 
     /**
      * Actualiza un paciente existente.
      */
-    public Resultado actualizarPaciente(int id, String dni, String nombre, String apellido1,
-                                        String apellido2, String patologia, String medicacion,
+    public Resultado actualizarPaciente(int id, String dni, String nombre, String apellido1, String apellido2, String edadStr, String genero,
+                                        String patologia, String medicacion,
                                         String intensidadStr, String tiempoStr, String cic) {
         Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1);
         if (!validacion.exito) return validacion;
@@ -234,15 +236,16 @@ public class PacienteController {
             return Resultado.error("Ya existe otro paciente con ese DNI");
         }
 
-        int intensidad, tiempo;
+        int intensidad, tiempo, edad;
         try {
+            edad = Integer.parseInt(edadStr.trim());
             intensidad = Integer.parseInt(intensidadStr.trim());
             tiempo = Integer.parseInt(tiempoStr.trim());
         } catch (NumberFormatException e) {
             return Resultado.error("La intensidad y el tiempo deben ser números");
         }
 
-        int resultado = dataManager.actualizarPaciente(id, dni, nombre, apellido1, apellido2,
+        int resultado = dataManager.actualizarPaciente(id, dni, nombre, apellido1, apellido2, edad, genero,
                 patologia, medicacion, intensidad, tiempo, cic);
 
         if (resultado != -1) {
@@ -255,8 +258,8 @@ public class PacienteController {
     /**
      * Actualiza un paciente existente con datos de 2 dispositivos.
      */
-    public Resultado actualizarPaciente2disp(int id, String dni, String nombre, String apellido1,
-                                             String apellido2, String patologia, String medicacion,
+    public Resultado actualizarPaciente2disp(int id, String dni, String nombre, String apellido1, String apellido2, String edadStr, String genero,
+                                             String patologia, String medicacion,
                                              String intensidadStr, String tiempoStr,
                                              String intensidadStr2, String tiempoStr2, String cic) {
         Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1);
@@ -269,8 +272,9 @@ public class PacienteController {
             return Resultado.error("Ya existe otro paciente con ese DNI");
         }
 
-        int intensidad, tiempo, intensidad2, tiempo2;
+        int intensidad, tiempo, intensidad2, tiempo2, edad;
         try {
+            edad = Integer.parseInt(edadStr.trim());
             intensidad = Integer.parseInt(intensidadStr.trim());
             tiempo = Integer.parseInt(tiempoStr.trim());
             intensidad2 = Integer.parseInt(intensidadStr2.trim());
@@ -279,7 +283,7 @@ public class PacienteController {
             return Resultado.error("La intensidad y el tiempo deben ser números");
         }
 
-        int resultado = dataManager.actualizarPaciente2disp(id, dni, nombre, apellido1, apellido2,
+        int resultado = dataManager.actualizarPaciente2disp(id, dni, nombre, apellido1, apellido2, edad, genero,
                 patologia, medicacion, intensidad, tiempo, intensidad2, tiempo2, cic);
 
         if (resultado != -1) {
@@ -365,6 +369,8 @@ public class PacienteController {
             String nombre = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_NOMBRE));
             String ap1 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO1));
             String ap2 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO2));
+            int edad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_EDAD));
+            Paciente.Genero genero = Paciente.Genero.valueOf((cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO))));
             String patologia = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_PATOLOGIA));
             String medicacion = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_MEDICACIÓN));
             int intensidad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD));
@@ -374,12 +380,12 @@ public class PacienteController {
                 int intensidad2 = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD2));
                 int tiempo2 = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_TIEMPO2));
                 cursor.close();
-                return new Paciente(id, cic, dni, nombre, ap1, ap2, patologia, medicacion,
+                return new Paciente(id, cic, dni, nombre, ap1, ap2, edad, genero, patologia, medicacion,
                         intensidad, tiempo, intensidad2, tiempo2);
             }
 
             cursor.close();
-            return new Paciente(id, cic, dni, nombre, ap1, ap2, patologia, medicacion,
+            return new Paciente(id, cic, dni, nombre, ap1, ap2, edad, genero, patologia, medicacion,
                     intensidad, tiempo);
         }
 
@@ -402,6 +408,8 @@ public class PacienteController {
                 String nombre = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_NOMBRE));
                 String ap1 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO1));
                 String ap2 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO2));
+                int edad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_EDAD));
+                Paciente.Genero genero = Paciente.Genero.valueOf((cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO))));
                 String patologia = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_PATOLOGIA));
                 String medicacion = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_MEDICACIÓN));
                 int intensidad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD));
@@ -409,7 +417,7 @@ public class PacienteController {
                 int intensidad2 = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD2));
                 int tiempo2 = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_TIEMPO2));
 
-                lista.add(new Paciente(id, cic, dni, nombre, ap1, ap2, patologia, medicacion,
+                lista.add(new Paciente(id, cic, dni, nombre, ap1, ap2, edad, genero, patologia, medicacion,
                         intensidad, tiempo, intensidad2, tiempo2));
             } while (cursor.moveToNext());
             cursor.close();
@@ -634,6 +642,8 @@ public class PacienteController {
         String nombre = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_NOMBRE));
         String ap1 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO1));
         String ap2 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO2));
+        int edad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_EDAD));
+        Paciente.Genero genero = Paciente.Genero.valueOf(cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO)));
         String patologia = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_PATOLOGIA));
         String medicacion = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_MEDICACIÓN));
         int intensidad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD));
@@ -641,7 +651,7 @@ public class PacienteController {
         int intensidad2 = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD2));
         int tiempo2 = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_TIEMPO2));
 
-        return new Paciente(id, cic, dni, nombre, ap1, ap2, patologia, medicacion,
+        return new Paciente(id, cic, dni, nombre, ap1, ap2, edad, genero, patologia, medicacion,
                 intensidad, tiempo, intensidad2, tiempo2);
     }
 }

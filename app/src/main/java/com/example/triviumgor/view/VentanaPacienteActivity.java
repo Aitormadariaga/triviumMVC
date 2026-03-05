@@ -8,6 +8,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Button;
 import android.widget.EditText;
@@ -47,7 +49,10 @@ public class VentanaPacienteActivity extends AppCompatActivity {
 
     // Formulario editable
     private ScrollView pacienteScrollView;
-    private EditText editDNI, editNombre, editApellido1, editApellido2;
+    private EditText editDNI, editNombre, editApellido1, editApellido2, editEdad;
+    private RadioGroup radioGroupGenero;
+    RadioButton radioMasculino;
+    RadioButton radioFemenino;
     private EditText editPatologia, editMedicacion, editCIC;
     private EditText editIntensidad, editTiempo;
     private EditText editIntensidad2, editTiempo2;
@@ -57,7 +62,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     // Detalles paciente
     private ScrollView detallesScrollView;
     private RelativeLayout detallesPacienteLayout;
-    private TextView tvDNI, tvCIC, tvNombreCompleto, tvPatologia, tvMedicacion;
+    private TextView tvDNI, tvCIC, tvNombreCompleto, tvPatologia, tvMedicacion, tvEdad, tvGenero;
     private TextView tvIntensidad, tvTiempo, tvIntensidad2, tvTiempo2;
     private TextView tvCreadoPor;
     private View dividerCreador;
@@ -209,6 +214,12 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         editNombre = findViewById(R.id.editNombre);
         editApellido1 = findViewById(R.id.editApellido1);
         editApellido2 = findViewById(R.id.editApellido2);
+        editEdad = findViewById(R.id.editEdad);
+
+        radioGroupGenero = findViewById(R.id.radioGroupGenero);
+        radioMasculino = findViewById(R.id.radioMasculino);
+        radioFemenino = findViewById(R.id.radioFemenino);
+
         editPatologia = findViewById(R.id.editPatologia);
         editMedicacion = findViewById(R.id.editMedicacion);
         editCIC = findViewById(R.id.editCIC);
@@ -239,6 +250,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         String nombre = editNombre.getText().toString().trim();
         String apellido1 = editApellido1.getText().toString().trim();
         String apellido2 = editApellido2.getText().toString().trim();
+        String edad = editEdad.getText().toString().trim();
         String patologia = editPatologia.getText().toString().trim();
         String medicacion = editMedicacion.getText().toString().trim();
         String cic = editCIC.getText().toString().trim();
@@ -247,26 +259,35 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         String intensidadStr2 = editIntensidad2.getText().toString().trim();
         String tiempoStr2 = editTiempo2.getText().toString().trim();
 
+        String genero = "";
+        int selectedId = radioGroupGenero.getCheckedRadioButtonId();
+
+        if (selectedId == R.id.radioMasculino) {
+            genero = "MASCULINO";
+        } else if (selectedId == R.id.radioFemenino) {
+            genero = "FEMENINO";
+        }
+
         PacienteController.Resultado resultado;
 
         if (editando) {
             if (optionDis == 3) {
                 resultado = pacienteController.actualizarPaciente2disp(idEditando, dni, nombre,
-                        apellido1, apellido2, patologia, medicacion,
+                        apellido1, apellido2, edad, genero, patologia, medicacion,
                         intensidadStr, tiempoStr, intensidadStr2, tiempoStr2, cic);
             } else {
                 resultado = pacienteController.actualizarPaciente(idEditando, dni, nombre,
-                        apellido1, apellido2, patologia, medicacion,
+                        apellido1, apellido2, edad, genero, patologia, medicacion,
                         intensidadStr, tiempoStr, cic);
             }
         } else {
             if (optionDis == 3) {
-                resultado = pacienteController.guardarPaciente2disp(idUsuarioReal,dni, nombre, apellido1,
-                        apellido2, patologia, medicacion,
+                resultado = pacienteController.guardarPaciente2disp(idUsuarioReal,dni, nombre, apellido1, apellido2, edad, genero,
+                        patologia, medicacion,
                         intensidadStr, tiempoStr, intensidadStr2, tiempoStr2, cic);
             } else {
-                resultado = pacienteController.guardarPaciente(idUsuarioReal,dni, nombre, apellido1,
-                        apellido2, patologia, medicacion,
+                resultado = pacienteController.guardarPaciente(idUsuarioReal,dni, nombre, apellido1, apellido2, edad, genero,
+                        patologia, medicacion,
                         intensidadStr, tiempoStr, cic);
             }
         }
@@ -288,6 +309,8 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         editNombre.setText("");
         editApellido1.setText("");
         editApellido2.setText("");
+        editEdad.setText("");
+        radioGroupGenero.clearCheck();
         editPatologia.setText("");
         editMedicacion.setText("");
         editCIC.setText("");
@@ -317,6 +340,8 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         tvDNI = findViewById(R.id.tvDNI);
         tvCIC = findViewById(R.id.tvCIC);
         tvNombreCompleto = findViewById(R.id.tvNombreCompleto);
+        tvEdad = findViewById(R.id.tvEdad);
+        tvGenero = findViewById(R.id.tvGenero);
         tvPatologia = findViewById(R.id.tvPatologia);
         tvMedicacion = findViewById(R.id.tvMedicacion);
         tvIntensidad = findViewById(R.id.tvIntensidad);
@@ -359,7 +384,17 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 editNombre.setText(pac.getNombre());
                 editApellido1.setText(pac.getAp1());
                 if (pac.getAp2() != null) editApellido2.setText(pac.getAp2());
+                if (pac.getEdad() >= 0) editEdad.setText(String.valueOf(pac.getEdad()));
                 if (pac.getPatologia() != null) editPatologia.setText(pac.getPatologia());
+                if (pac.getGenero() != null) {
+                    if (pac.getGenero() == Paciente.Genero.MASCULINO) {
+                        radioMasculino.setChecked(true);
+                    } else {
+                        radioFemenino.setChecked(true);
+                    }
+                } else {
+                    radioGroupGenero.clearCheck(); // ninguno marcado
+                }
                 if (pac.getMedicacion() != null) editMedicacion.setText(pac.getMedicacion());
                 if (pac.getCIC() != null) editCIC.setText(pac.getCIC());
                 if (pac.getIntensidad() >= 0) editIntensidad.setText(String.valueOf(pac.getIntensidad()));
@@ -408,6 +443,8 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         tvDNI.setText("DNI: " + paciente.getDNI());
         tvCIC.setText("CIC: " + paciente.getCIC());
         tvNombreCompleto.setText("Nombre: " + paciente.getNombreCompleto());
+        tvEdad.setText("Edad: " + paciente.getEdad());
+        tvGenero.setText("Genero: " + paciente.getGenero().getEtiqueta());
         tvPatologia.setText("Patología: " + paciente.getPatologia());
         tvMedicacion.setText("Medicación: " + paciente.getMedicacion());
         tvIntensidad.setText("Intensidad: " + paciente.getIntensidad());

@@ -27,6 +27,8 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String COLUMN_CIC = "cic";
     public static final String COLUMN_DNI = "dni";
     public static final String COLUMN_NOMBRE = "nombre";
+    public static final String COLUMN_EDAD = "edad";
+    public static final String COLUMN_GENERO = "genero";
     public static final String COLUMN_APELLIDO1 = "apellido1";
     public static final String COLUMN_APELLIDO2 = "apellido2";
     public static final String COLUMN_PATOLOGIA = "patología";
@@ -80,6 +82,8 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     COLUMN_NOMBRE + " TEXT NOT NULL, " +
                     COLUMN_APELLIDO1 + " TEXT NOT NULL, " +
                     COLUMN_APELLIDO2 + " TEXT, " +
+                    COLUMN_EDAD + " INTEGER, " +
+                    COLUMN_GENERO + " TEXT, " +
                     COLUMN_PATOLOGIA + " TEXT, " +
                     COLUMN_MEDICACIÓN + " TEXT," +
                     COLUMN_INTENSIDAD + " INTEGER, " +

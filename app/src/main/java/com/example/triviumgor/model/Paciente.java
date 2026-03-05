@@ -1,5 +1,7 @@
 package com.example.triviumgor.model;
 
+
+
 public class Paciente {
 
     private int ID;
@@ -8,6 +10,8 @@ public class Paciente {
     private String nombre;
     private String ap1;
     private String ap2;
+    private int edad;
+    private Genero genero;
     private String patologia;
     private String medicacion;
     private int intensidad;
@@ -16,11 +20,13 @@ public class Paciente {
     private int tiempoM2;
 
     // Constructor sin ID (para inserciones)
-    public Paciente(String CIC, String DNI, String nombre, String ap1, String ap2,
+    public Paciente(String CIC, String DNI, String nombre, String ap1, String ap2, int edad, Genero genero,
                     String patologia, String medicacion, int intensidad, int tiempoM) {
         this.CIC = CIC;
         this.DNI = DNI;
         this.nombre = nombre;
+        this.edad = edad;
+        this.genero = genero;
         this.ap1 = ap1;
         this.ap2 = ap2;
         this.patologia = patologia;
@@ -32,17 +38,17 @@ public class Paciente {
     }
 
     // Constructor con ID (1 dispositivo)
-    public Paciente(int ID, String CIC, String DNI, String nombre, String ap1, String ap2,
+    public Paciente(int ID, String CIC, String DNI, String nombre, String ap1, String ap2, int edad, Genero genero,
                     String patologia, String medicacion, int intensidad, int tiempoM) {
-        this(CIC, DNI, nombre, ap1, ap2, patologia, medicacion, intensidad, tiempoM);
+        this(CIC, DNI, nombre, ap1, ap2, edad, genero, patologia, medicacion, intensidad, tiempoM);
         this.ID = ID;
     }
 
     // Constructor con ID (2 dispositivos)
-    public Paciente(int ID, String CIC, String DNI, String nombre, String ap1, String ap2,
+    public Paciente(int ID, String CIC, String DNI, String nombre, String ap1, String ap2, int edad, Genero genero,
                     String patologia, String medicacion, int intensidad, int tiempoM,
                     int intensidad2, int tiempoM2) {
-        this(ID, CIC, DNI, nombre, ap1, ap2, patologia, medicacion, intensidad, tiempoM);
+        this(ID, CIC, DNI, nombre, ap1, ap2, edad, genero, patologia, medicacion, intensidad, tiempoM);
         this.intensidad2 = intensidad2;
         this.tiempoM2 = tiempoM2;
     }
@@ -95,4 +101,37 @@ public class Paciente {
 
     public int getTiempoM2() { return tiempoM2; }
     public void setTiempoM2(int tiempoM2) { this.tiempoM2 = tiempoM2; }
+
+    public int getEdad() {
+        return edad;
+    }
+
+    public void setEdad(int edad) {
+        this.edad = edad;
+    }
+
+    public Genero getGenero() {
+        return genero;
+    }
+
+    public void setGenero(Genero genero) {
+        this.genero = genero;
+    }
+
+    public enum Genero {
+        MASCULINO("Masculino"),
+        FEMENINO("Femenino"),
+        NO_BINARIO("No binario"),
+        PREFIERO_NO_DECIR("Prefiero no decir");
+
+        private final String etiqueta;
+
+        Genero(String etiqueta) {
+            this.etiqueta = etiqueta;
+        }
+
+        public String getEtiqueta() {
+            return etiqueta;
+        }
+    }
 }
