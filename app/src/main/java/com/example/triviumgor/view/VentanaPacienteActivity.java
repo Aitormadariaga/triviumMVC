@@ -70,6 +70,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
 
     private int pacienteSeleccionadoId = -1;
     private String[] pacientesNombres;
+    private int[] pacientesIds;
     private boolean filtrado = false;
 
     // Datos recibidos de MainActivity
@@ -183,14 +184,15 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             if (filtrado) {
                 String nombreFiltrado = vieLista.getAdapter().getItem(position).toString();
                 actualizarListaPacientes();
+                pacienteSeleccionadoId = -1;
                 for (int i = 0; i < pacientesNombres.length; i++) {
                     if (nombreFiltrado.equals(pacientesNombres[i])) {
-                        pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(i);
+                        pacienteSeleccionadoId = pacientesIds[i];
                         break;
                     }
                 }
             } else {
-                pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(position);
+                pacienteSeleccionadoId = (position < pacientesIds.length) ? pacientesIds[position] : -1;
             }
 
             if (pacienteSeleccionadoId != -1) {
@@ -295,12 +297,47 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         Toast.makeText(this, resultado.mensaje, Toast.LENGTH_SHORT).show();
 
         if (resultado.exito) {
+            // Capturamos datos del formulario ANTES de limpiar
+            final String _dni        = dni;
+            final String _nombre     = nombre;
+            final String _ap1        = apellido1;
+            final String _ap2        = apellido2;
+            final String _edad       = edad;
+            final String _cic        = cic;
+            final String _patologia  = patologia;
+            final String _medicacion = medicacion;
+            final String _intensidad = intensidadStr;
+            final String _tiempo     = tiempoStr;
+            final String _genero     = genero;
+
+            pacienteSeleccionadoId = (int) resultado.id;
+
             limpiarCampos();
             editando = false;
             idEditando = -1;
             actualizarListaPacientes();
+
+            // Rellenamos la ficha directamente con los datos del formulario,
+            // sin hacer query a la BD (evita problema de timing con fuse/WAL)
+            nomSelPaciente.setText(_nombre + " " + _ap1);
+            tvDNI.setText("DNI: " + _dni);
+            tvCIC.setText("CIC: " + (_cic.isEmpty() ? "-" : _cic));
+            tvNombreCompleto.setText("Nombre: " + _nombre + " " + _ap1
+                    + (_ap2.isEmpty() ? "" : " " + _ap2));
+            tvEdad.setText("Edad: " + (_edad.isEmpty() ? "-" : _edad));
+            tvGenero.setText("Genero: " + (_genero.isEmpty() ? "-" : _genero));
+            tvPatologia.setText("Patología: " + (_patologia.isEmpty() ? "-" : _patologia));
+            tvMedicacion.setText("Medicación: " + (_medicacion.isEmpty() ? "-" : _medicacion));
+            tvIntensidad.setText("Intensidad: " + (_intensidad.isEmpty() ? "-" : _intensidad));
+            tvTiempo.setText("Tiempo (min): " + (_tiempo.isEmpty() ? "-" : _tiempo));
+            tvIntensidad2.setVisibility(View.GONE);
+            tvTiempo2.setVisibility(View.GONE);
+            tvCreadoPor.setVisibility(View.GONE);
+            dividerCreador.setVisibility(View.GONE);
+
             pacienteScrollView.setVisibility(View.GONE);
-            verLista.setVisibility(View.VISIBLE);
+            verLista.setVisibility(View.GONE);
+            detallesScrollView.setVisibility(View.VISIBLE);
         }
     }
 
@@ -325,7 +362,23 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     // ========================
 
     private void actualizarListaPacientes() {
-        pacientesNombres = pacienteController.obtenerListaPacientesFormateada(); //ojo
+        List<com.example.triviumgor.model.Paciente> lista = (idUsuarioActual == -1)
+                ? pacienteController.obtenerTodosPacientes()
+                : pacienteController.obtenerPacientesDeUsuario(idUsuarioActual);
+        if (lista.isEmpty()) {
+            pacientesNombres = new String[]{"No hay pacientes registrados"};
+            pacientesIds = new int[0];
+        } else {
+            pacientesNombres = new String[lista.size()];
+            pacientesIds = new int[lista.size()];
+            for (int i = 0; i < lista.size(); i++) {
+                com.example.triviumgor.model.Paciente p = lista.get(i);
+                pacientesNombres[i] = "DNI: " + p.getDNI() + " - " + p.getNombre() + " " + p.getAp1();
+                if (p.getAp2() != null && !p.getAp2().isEmpty())
+                    pacientesNombres[i] += " " + p.getAp2();
+                pacientesIds[i] = p.getID();
+            }
+        }
         vieLista.setAdapter(new ArrayAdapter<>(this,
                 android.R.layout.simple_list_item_1, pacientesNombres));
         filtrado = false;
@@ -554,7 +607,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 String nombrePacDado = pacientesNombres[posicionDado];
                 nombrePacDado = nombrePacDado.substring(nombrePacDado.indexOf("-") + 1);
                 nomSelPaciente.setText(nombrePacDado);
-                pacienteSeleccionadoId = pacienteController.obtenerIdPorPosicion(posicionDado, idUsuarioActual);
+                pacienteSeleccionadoId = pacientesIds[posicionDado];
                 cargarDetallesPaciente(pacienteSeleccionadoId);
                 detallesScrollView.setVisibility(View.VISIBLE);
                 verLista.setVisibility(View.GONE);
