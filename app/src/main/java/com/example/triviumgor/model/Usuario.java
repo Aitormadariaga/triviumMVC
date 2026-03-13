@@ -6,7 +6,7 @@ public class Usuario {
     private String hashPassword;
     private String nombreCompleto;
     private String rol;
-    private int activo;
+    private int activo; // en web es un boolean, tambien en base de datos
     private String fechaCreacion;
     private String ultimoAcceso;
 
