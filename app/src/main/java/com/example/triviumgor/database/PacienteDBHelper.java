@@ -17,7 +17,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     // ⚠️ IMPORTANTE: Se incrementó la versión de 2 a 3 para que onUpgrade()
     //    cree la nueva tabla usuario_paciente en dispositivos ya instalados.
     //si volvemos a modificar el esquema subirías a 4 y añadirías un bloque if (oldVersion < 3) en onUpgrade()
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 5;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -72,6 +72,26 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String TABLE_USUARIO_SESION = "usuario_sesion";
     public static final String COLUMN_US_USUARIO_ID = "id_usuario";
     public static final String COLUMN_US_SESION_ID = "id_paciente";
+
+    // Añadir estas constantes a PacienteDBHelper.java
+    public static final String TABLE_BACKUP_PENDIENTE = "backup_pendiente";
+    public static final String COLUMN_BP_ID = "_id";
+    public static final String COLUMN_BP_PACIENTE_ID = "paciente_id";
+    public static final String COLUMN_BP_ELIMINAR = "eliminar";
+    public static final String COLUMN_BP_CIC = "cic";
+    public static final String COLUMN_BP_DNI = "dni";
+    public static final String COLUMN_BP_NOMBRE = "nombre";
+    public static final String COLUMN_BP_APELLIDO1 = "apellido1";
+    public static final String COLUMN_BP_APELLIDO2 = "apellido2";
+    public static final String COLUMN_BP_EDAD = "edad";
+    public static final String COLUMN_BP_GENERO = "genero";
+    public static final String COLUMN_BP_PATOLOGIA = "patologia";
+    public static final String COLUMN_BP_MEDICACION = "medicacion";
+    public static final String COLUMN_BP_INTENSIDAD = "intensidad";
+    public static final String COLUMN_BP_TIEMPO = "tiempo";
+    public static final String COLUMN_BP_INTENSIDAD2 = "intensidad2";
+    public static final String COLUMN_BP_TIEMPO2 = "tiempo2";
+    public static final String COLUMN_BP_FECHA = "fecha";
 
     // Sentencia SQL para crear la tabla
     private static final String SQL_CREATE_PACIENTES =
@@ -138,6 +158,27 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     "FOREIGN KEY (" + COLUMN_US_SESION_ID + ") REFERENCES " +
                     TABLE_SESIONES + "(" + COLUMN_SESION_ID + "))";
 
+    // Añadir este SQL en PacienteDBHelper.java
+    private static final String SQL_CREATE_BACKUP_PENDIENTE =
+            "CREATE TABLE " + TABLE_BACKUP_PENDIENTE + " (" +
+                    COLUMN_BP_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    COLUMN_BP_PACIENTE_ID + " INTEGER NOT NULL, " +
+                    COLUMN_BP_ELIMINAR + " INTEGER DEFAULT 0, " +
+                    COLUMN_BP_CIC + " TEXT, " +
+                    COLUMN_BP_DNI + " TEXT, " +
+                    COLUMN_BP_NOMBRE + " TEXT, " +
+                    COLUMN_BP_APELLIDO1 + " TEXT, " +
+                    COLUMN_BP_APELLIDO2 + " TEXT, " +
+                    COLUMN_BP_EDAD + " INTEGER, " +
+                    COLUMN_BP_GENERO + " TEXT, " +
+                    COLUMN_BP_PATOLOGIA + " TEXT, " +
+                    COLUMN_BP_MEDICACION + " TEXT, " +
+                    COLUMN_BP_INTENSIDAD + " INTEGER, " +
+                    COLUMN_BP_TIEMPO + " INTEGER, " +
+                    COLUMN_BP_INTENSIDAD2 + " INTEGER, " +
+                    COLUMN_BP_TIEMPO2 + " INTEGER, " +
+                    COLUMN_BP_FECHA + " TEXT NOT NULL)"; //Ojo cuidado que es texto
+
     // Constructor modificado
     public PacienteDBHelper(Context context) {
         super(context, getDatabasePath(context), null, DATABASE_VERSION);
@@ -192,6 +233,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_USUARIOS);
         db.execSQL(SQL_CREATE_USUARIO_PACIENTE);
         db.execSQL(SQL_CREATE_USUARIO_SESION);
+        db.execSQL(SQL_CREATE_BACKUP_PENDIENTE);
 
         // Insertar usuario administrador por defecto
         insertarUsuarioAdmin(db);
@@ -243,6 +285,15 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             Log.d("PacienteDBHelper", "Tabla usuario_sesion creada en migración");
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error al crear tabla usuario_sesion: " + e.getMessage());
+        }
+    }
+    if (oldVersion < 5) {
+        // Migración v3 → v4: crear tabla BackUp Pendiente, donde metemos los cambios que hicimos de pacientes solo, para la sincronizacion
+        try {
+            db.execSQL(SQL_CREATE_BACKUP_PENDIENTE);
+            Log.d("PacienteDBHelper", "Tabla backup_pendiente creada");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error: " + e.getMessage());
         }
     }
 }

@@ -323,9 +323,19 @@
                             android:id="@+id/btnVerLista"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
                             android:text="Ver Lista"
                             app:cornerRadius="12dp"
                             style="@style/Widget.Trivium.Button.Outlined" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSincronizar"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+
+                            android:text="Sincronizar"
+                            app:cornerRadius="12dp"
+                            style="@style/Widget.Trivium.Button"/>
 
                     </LinearLayout>
 

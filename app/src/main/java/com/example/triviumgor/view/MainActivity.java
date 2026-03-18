@@ -42,7 +42,11 @@ import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.DispositivoState;
 import com.example.triviumgor.model.Paciente;
 import com.example.triviumgor.model.Usuario;
+import com.example.triviumgor.network.SincronizacionManager;
 import com.example.triviumgor.util.UIHelper;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.UUID;
 
@@ -183,6 +187,12 @@ public class MainActivity extends AppCompatActivity
     };
 
     // ========================
+    // CONTROL DE API Y SINCRONIZACION
+    // ========================
+    private SincronizacionManager sincronizacionManager;
+    private Button btnSincronizar;
+
+    // ========================
     // LIFECYCLE
     // ========================
 
@@ -211,6 +221,10 @@ public class MainActivity extends AppCompatActivity
         sesionController = new SesionController(dataManager);
         usuarioController = new UsuarioController(this, dataManager);
 
+        sincronizacionManager = new SincronizacionManager(this, dataManager);
+
+
+
         // Verificar sesión activa
         if (!usuarioController.haySesionActiva()) {
             Intent intent = new Intent(this, LoginActivity.class);
@@ -231,6 +245,8 @@ public class MainActivity extends AppCompatActivity
 
         // Leer MACs
         bluetoothController.leerArchivoMACs();
+
+
     }
 
     @Override
@@ -288,6 +304,11 @@ public class MainActivity extends AppCompatActivity
         btnVerLista = findViewById(R.id.btnVerLista);
         nombreDispositivoPac1 = findViewById(R.id.nombreDispositivoPac1);
         nombreDispositivoPac2 = findViewById(R.id.nombreDispositivoPac2);
+
+        btnSincronizar = findViewById(R.id.btnSincronizar);
+
+        // Activar solo si hay internet
+        btnSincronizar.setEnabled(SincronizacionManager.hayInternet(this));
 
         // Botones de amplitud (dispositivo 1)
         AmpliInc1 = findViewById(R.id.buttonAmpliInc);
@@ -548,6 +569,46 @@ public class MainActivity extends AppCompatActivity
             intent.putExtra("verSoloLista", true);
             intent.putExtra("DISPOSITIVO_ELEC", opcionDispositivoInt);
             startActivity(intent);
+        });
+
+        // SINCRONIZAR
+        btnSincronizar.setOnClickListener(v -> {
+            btnSincronizar.setEnabled(false);
+            btnSincronizar.setText("Sincronizando...");
+
+            sincronizacionManager.sincronizar(new SincronizacionManager.SincronizacionListener() {
+
+                @Override
+                public void onCompletado(int sincronizados, int conflictos) {
+                    runOnUiThread(() -> {
+                        btnSincronizar.setEnabled(true);
+                        btnSincronizar.setText("Sincronizar");
+                        Toast.makeText(MainActivity.this,
+                                "✅ Sincronización completada",
+                                Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onConflictos(JSONArray conflictos) {
+                    runOnUiThread(() -> {
+                        btnSincronizar.setEnabled(true);
+                        btnSincronizar.setText("Sincronizar");
+                        mostrarDialogoConflicto(conflictos, 0);
+                    });
+                }
+
+                @Override
+                public void onError(String mensaje) {
+                    runOnUiThread(() -> {
+                        btnSincronizar.setEnabled(true);
+                        btnSincronizar.setText("Sincronizar");
+                        Toast.makeText(MainActivity.this,
+                                "❌ Error: " + mensaje,
+                                Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
         });
     }
 
@@ -841,6 +902,88 @@ public class MainActivity extends AppCompatActivity
     private void mostrarDialogoGuardar2Dispositivos() {
         // TODO: Implementar diálogo para guardar config de 2 dispositivos
         Toast.makeText(this, "Guardar config 2 dispositivos", Toast.LENGTH_SHORT).show();
+    }
+
+    private void mostrarDialogoConflicto(JSONArray conflictos, int indice) {
+        if (indice >= conflictos.length()) {
+            Toast.makeText(this,
+                    "✅ Todos los conflictos resueltos",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            JSONObject conflicto      = conflictos.getJSONObject(indice);
+            int pacienteId            = conflicto.getInt("pacienteId");
+            JSONObject versionTablet  = conflicto.getJSONObject("versionTablet");
+            JSONObject versionServidor = conflicto.getJSONObject("versionServidor");
+
+            String nombreTablet   = versionTablet.optString("nombre", "?")
+                    + " " + versionTablet.optString("apellido1", "");
+            String medicoServidor = versionServidor.optString("usuario", "otro médico");
+            String fechaServidor  = versionServidor.optString("fecha", "");
+
+            new AlertDialog.Builder(this)
+                    .setTitle("⚠️ Conflicto detectado")
+                    .setMessage(
+                            "El paciente " + nombreTablet.trim() +
+                                    " también fue modificado por " + medicoServidor +
+                                    " el " + fechaServidor + ".\n\n¿Qué versión quieres mantener?"
+                    )
+                    .setPositiveButton("Mis cambios", (dialog, which) -> {
+                        sincronizacionManager.resolverConflicto(
+                                pacienteId,
+                                "mantener",
+                                versionTablet,
+                                new SincronizacionManager.SincronizacionListener() {
+                                    @Override
+                                    public void onCompletado(int s, int c) {
+                                        // Siguiente conflicto
+                                        mostrarDialogoConflicto(conflictos, indice + 1);
+                                    }
+                                    @Override
+                                    public void onConflictos(JSONArray c) {
+                                        // No debería ocurrir aquí
+                                    }
+                                    @Override
+                                    public void onError(String msg) {
+                                        runOnUiThread(() ->
+                                                Toast.makeText(MainActivity.this,
+                                                        "❌ Error: " + msg,
+                                                        Toast.LENGTH_SHORT).show());
+                                    }
+                                }
+                        );
+                    })
+                    .setNegativeButton("Cambios de " + medicoServidor, (dialog, which) -> {
+                        sincronizacionManager.resolverConflicto(
+                                pacienteId,
+                                "sobreescribir",
+                                null,
+                                new SincronizacionManager.SincronizacionListener() {
+                                    @Override
+                                    public void onCompletado(int s, int c) {
+                                        mostrarDialogoConflicto(conflictos, indice + 1);
+                                    }
+                                    @Override
+                                    public void onConflictos(JSONArray c) {}
+                                    @Override
+                                    public void onError(String msg) {
+                                        runOnUiThread(() ->
+                                                Toast.makeText(MainActivity.this,
+                                                        "❌ Error: " + msg,
+                                                        Toast.LENGTH_SHORT).show());
+                                    }
+                                }
+                        );
+                    })
+                    .setCancelable(false)
+                    // ↑ Obligatorio decidir, no se puede cerrar sin elegir
+                    .show();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error mostrando diálogo conflicto: " + e.getMessage());
+        }
     }
 
     // ========================

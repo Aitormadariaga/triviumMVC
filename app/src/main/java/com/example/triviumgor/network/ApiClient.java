@@ -195,6 +195,32 @@ public class ApiClient {
     }
 
     // ============================================
+    // POST /api/sincronizar/sesiones
+    // Enviar sesiones pendientes de la tablet
+    //
+    // Envía:
+    // {
+    //   "sesiones": [
+    //     {
+    //       "pacienteId": 5,
+    //       "dispositivo": "Tablet-01",
+    //       "intensidad": 10,
+    //       "tiempo": 30
+    //     }
+    //   ]
+    // }
+    // ============================================
+    public void sincronizarSesiones(JSONArray sesiones, ApiCallback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("sesiones", sesiones);
+            post("/api/sincronizar/sesiones", body, true, callback);
+        } catch (Exception e) {
+            callback.onError("Error al preparar la petición");
+        }
+    }
+
+    // ============================================
     // Métodos HTTP base
     // ============================================
 
