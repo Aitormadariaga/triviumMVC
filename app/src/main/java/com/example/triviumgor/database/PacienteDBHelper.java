@@ -17,7 +17,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     // ⚠️ IMPORTANTE: Se incrementó la versión de 2 a 3 para que onUpgrade()
     //    cree la nueva tabla usuario_paciente en dispositivos ya instalados.
     //si volvemos a modificar el esquema subirías a 4 y añadirías un bloque if (oldVersion < 3) en onUpgrade()
-    private static final int DATABASE_VERSION = 5;
+    private static final int DATABASE_VERSION = 6;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -92,6 +92,10 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String COLUMN_BP_INTENSIDAD2 = "intensidad2";
     public static final String COLUMN_BP_TIEMPO2 = "tiempo2";
     public static final String COLUMN_BP_FECHA = "fecha";
+
+    // Tabla ELIMINACIONES_PENDIENTES
+    public static final String TABLE_ELIMINACIONES_PENDIENTES = "eliminaciones_pendientes";
+    public static final String COLUMN_EP_PACIENTE_ID = "paciente_id";
 
     // Sentencia SQL para crear la tabla
     private static final String SQL_CREATE_PACIENTES =
@@ -179,6 +183,11 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     COLUMN_BP_TIEMPO2 + " INTEGER, " +
                     COLUMN_BP_FECHA + " TEXT NOT NULL)"; //Ojo cuidado que es texto
 
+    // SQL para crear tabla Eliminaciones_pendientes
+    private static final String SQL_CREATE_ELIMINACIONES_PENDIENTES =
+            "CREATE TABLE " + TABLE_ELIMINACIONES_PENDIENTES + " (" +
+                    COLUMN_EP_PACIENTE_ID + " INTEGER PRIMARY KEY)";
+
     // Constructor modificado
     public PacienteDBHelper(Context context) {
         super(context, getDatabasePath(context), null, DATABASE_VERSION);
@@ -234,6 +243,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_USUARIO_PACIENTE);
         db.execSQL(SQL_CREATE_USUARIO_SESION);
         db.execSQL(SQL_CREATE_BACKUP_PENDIENTE);
+        db.execSQL(SQL_CREATE_ELIMINACIONES_PENDIENTES);
 
         // Insertar usuario administrador por defecto
         insertarUsuarioAdmin(db);
@@ -292,6 +302,14 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         try {
             db.execSQL(SQL_CREATE_BACKUP_PENDIENTE);
             Log.d("PacienteDBHelper", "Tabla backup_pendiente creada");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error: " + e.getMessage());
+        }
+    }
+    if (oldVersion < 6) {
+        try {
+            db.execSQL(SQL_CREATE_ELIMINACIONES_PENDIENTES);
+            Log.d("PacienteDBHelper", "Tabla eliminaciones_pendientes creada");
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error: " + e.getMessage());
         }

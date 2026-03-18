@@ -42,6 +42,7 @@ import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.DispositivoState;
 import com.example.triviumgor.model.Paciente;
 import com.example.triviumgor.model.Usuario;
+import com.example.triviumgor.network.SincronizacionListener;
 import com.example.triviumgor.network.SincronizacionManager;
 import com.example.triviumgor.util.UIHelper;
 
@@ -217,7 +218,7 @@ public class MainActivity extends AppCompatActivity
         bluetoothController.setDispositivoRefs(dispositivo1, dispositivo2);
 
         tratamientoController = new TratamientoController(this);
-        pacienteController = new PacienteController(dataManager);
+        pacienteController = new PacienteController(this, dataManager);
         sesionController = new SesionController(dataManager);
         usuarioController = new UsuarioController(this, dataManager);
 
@@ -576,7 +577,7 @@ public class MainActivity extends AppCompatActivity
             btnSincronizar.setEnabled(false);
             btnSincronizar.setText("Sincronizando...");
 
-            sincronizacionManager.sincronizar(new SincronizacionManager.SincronizacionListener() {
+            sincronizacionManager.sincronizar(new SincronizacionListener() {
 
                 @Override
                 public void onCompletado(int sincronizados, int conflictos) {
@@ -595,6 +596,15 @@ public class MainActivity extends AppCompatActivity
                         btnSincronizar.setEnabled(true);
                         btnSincronizar.setText("Sincronizar");
                         mostrarDialogoConflicto(conflictos, 0);
+                    });
+                }
+
+                @Override
+                public void onEliminacionesRechazadas(JSONArray rechazados) {
+                    runOnUiThread(() -> {
+                        btnSincronizar.setEnabled(true);
+                        btnSincronizar.setText("Sincronizar");
+                        mostrarDialogoEliminacionesRechazadas(rechazados);
                     });
                 }
 
@@ -913,9 +923,9 @@ public class MainActivity extends AppCompatActivity
         }
 
         try {
-            JSONObject conflicto      = conflictos.getJSONObject(indice);
-            int pacienteId            = conflicto.getInt("pacienteId");
-            JSONObject versionTablet  = conflicto.getJSONObject("versionTablet");
+            JSONObject conflicto       = conflictos.getJSONObject(indice);
+            int pacienteId             = conflicto.getInt("pacienteId");
+            JSONObject versionTablet   = conflicto.getJSONObject("versionTablet");
             JSONObject versionServidor = conflicto.getJSONObject("versionServidor");
 
             String nombreTablet   = versionTablet.optString("nombre", "?")
@@ -935,16 +945,15 @@ public class MainActivity extends AppCompatActivity
                                 pacienteId,
                                 "mantener",
                                 versionTablet,
-                                new SincronizacionManager.SincronizacionListener() {
+                                new SincronizacionListener() {
                                     @Override
                                     public void onCompletado(int s, int c) {
-                                        // Siguiente conflicto
                                         mostrarDialogoConflicto(conflictos, indice + 1);
                                     }
                                     @Override
-                                    public void onConflictos(JSONArray c) {
-                                        // No debería ocurrir aquí
-                                    }
+                                    public void onConflictos(JSONArray c) {}
+                                    @Override
+                                    public void onEliminacionesRechazadas(JSONArray r) {}
                                     @Override
                                     public void onError(String msg) {
                                         runOnUiThread(() ->
@@ -960,13 +969,15 @@ public class MainActivity extends AppCompatActivity
                                 pacienteId,
                                 "sobreescribir",
                                 null,
-                                new SincronizacionManager.SincronizacionListener() {
+                                new SincronizacionListener() {
                                     @Override
                                     public void onCompletado(int s, int c) {
                                         mostrarDialogoConflicto(conflictos, indice + 1);
                                     }
                                     @Override
                                     public void onConflictos(JSONArray c) {}
+                                    @Override
+                                    public void onEliminacionesRechazadas(JSONArray r) {}
                                     @Override
                                     public void onError(String msg) {
                                         runOnUiThread(() ->
@@ -978,11 +989,62 @@ public class MainActivity extends AppCompatActivity
                         );
                     })
                     .setCancelable(false)
-                    // ↑ Obligatorio decidir, no se puede cerrar sin elegir
                     .show();
 
         } catch (Exception e) {
             Log.e(TAG, "Error mostrando diálogo conflicto: " + e.getMessage());
+        }
+    }
+    private void mostrarDialogoEliminacionesRechazadas(JSONArray rechazados) {
+        try {
+            // Construir lista de nombres para mostrar
+            StringBuilder lista = new StringBuilder();
+            for (int i = 0; i < rechazados.length(); i++) {
+                JSONObject p = rechazados.getJSONObject(i);
+                lista.append("• ")
+                        .append(p.optString("nombre", ""))
+                        .append(" ")
+                        .append(p.optString("apellido1", ""))
+                        .append(" (")
+                        .append(p.optString("dni", ""))
+                        .append(")\n");
+            }
+
+            new AlertDialog.Builder(this)
+                    .setTitle("⚠️ Eliminaciones no confirmadas")
+                    .setMessage(
+                            "El administrador no confirmó la eliminación de los " +
+                                    "siguientes pacientes, por lo que han sido restaurados:\n\n"
+                                    + lista.toString()
+                    )
+                    .setPositiveButton("Entendido", (dialog, which) -> {
+                        // Restaurar pacientes descargando de nuevo del servidor
+                        sincronizacionManager.descargarTodo(
+                                new SincronizacionManager.DescargaListener() {
+                                    @Override
+                                    public void onCompletado(int pacientes, int sesiones) {
+                                        runOnUiThread(() ->
+                                                Toast.makeText(MainActivity.this,
+                                                        "Datos actualizados",
+                                                        Toast.LENGTH_SHORT).show()
+                                        );
+                                    }
+                                    @Override
+                                    public void onError(String msg) {
+                                        runOnUiThread(() ->
+                                                Toast.makeText(MainActivity.this,
+                                                        "Error al actualizar datos",
+                                                        Toast.LENGTH_SHORT).show()
+                                        );
+                                    }
+                                }
+                        );
+                    })
+                    .setCancelable(false)
+                    .show();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error mostrando diálogo eliminaciones rechazadas: " + e.getMessage());
         }
     }
 

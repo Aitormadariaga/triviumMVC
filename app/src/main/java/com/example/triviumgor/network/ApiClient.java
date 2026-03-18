@@ -221,6 +221,15 @@ public class ApiClient {
     }
 
     // ============================================
+    // GET /api/sincronizar/eliminaciones-rechazadas
+    // Comprueba si alguna eliminación no fue
+    // confirmada por el admin esta semana
+    // ============================================
+    public void getEliminacionesRechazadas(ApiCallback callback) {
+        get("/api/sincronizar/eliminaciones-rechazadas", callback);
+    }
+
+    // ============================================
     // Métodos HTTP base
     // ============================================
 

@@ -17,18 +17,22 @@ import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+
+import com.example.triviumgor.network.SincronizacionListener;
+
 public class SincronizacionManager {
 
     private static final String TAG = "SincronizacionManager";
 
     private final Context context;
     private final ApiClient apiClient;
-    private final PacienteDBHelper dbHelper;
+    private final PacienteDataManager dataManager;
 
     public SincronizacionManager(Context context, PacienteDataManager dataManager) {
         this.context = context;
         this.apiClient = new ApiClient(context);
-        this.dbHelper = new PacienteDBHelper(context);
+
+        this.dataManager = dataManager;
     }
 
     // ============================================
@@ -49,51 +53,7 @@ public class SincronizacionManager {
     // ============================================
     public void guardarCambioPendiente(int pacienteId, boolean eliminar,
                                        JSONObject datosPaciente) {
-        try {
-            SQLiteDatabase db = dbHelper.getWritableDatabase();
-            ContentValues values = new ContentValues();
-
-            values.put(PacienteDBHelper.COLUMN_BP_PACIENTE_ID, pacienteId);
-            values.put(PacienteDBHelper.COLUMN_BP_ELIMINAR, eliminar ? 1 : 0);
-            values.put(PacienteDBHelper.COLUMN_BP_FECHA,
-                    new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",
-                            Locale.getDefault()).format(new Date()));
-
-            if (datosPaciente != null) {
-                values.put(PacienteDBHelper.COLUMN_BP_CIC,
-                        datosPaciente.optString("cic", null));
-                values.put(PacienteDBHelper.COLUMN_BP_DNI,
-                        datosPaciente.optString("dni", null));
-                values.put(PacienteDBHelper.COLUMN_BP_NOMBRE,
-                        datosPaciente.optString("nombre", null));
-                values.put(PacienteDBHelper.COLUMN_BP_APELLIDO1,
-                        datosPaciente.optString("apellido1", null));
-                values.put(PacienteDBHelper.COLUMN_BP_APELLIDO2,
-                        datosPaciente.optString("apellido2", null));
-                values.put(PacienteDBHelper.COLUMN_BP_EDAD,
-                        datosPaciente.optInt("edad", 0));
-                values.put(PacienteDBHelper.COLUMN_BP_GENERO,
-                        datosPaciente.optString("genero", null));
-                values.put(PacienteDBHelper.COLUMN_BP_PATOLOGIA,
-                        datosPaciente.optString("patologia", null));
-                values.put(PacienteDBHelper.COLUMN_BP_MEDICACION,
-                        datosPaciente.optString("medicacion", null));
-                values.put(PacienteDBHelper.COLUMN_BP_INTENSIDAD,
-                        datosPaciente.optInt("intensidad", 0));
-                values.put(PacienteDBHelper.COLUMN_BP_TIEMPO,
-                        datosPaciente.optInt("tiempo", 0));
-                values.put(PacienteDBHelper.COLUMN_BP_INTENSIDAD2,
-                        datosPaciente.optInt("intensidad2", 0));
-                values.put(PacienteDBHelper.COLUMN_BP_TIEMPO2,
-                        datosPaciente.optInt("tiempo2", 0));
-            }
-
-            db.insert(PacienteDBHelper.TABLE_BACKUP_PENDIENTE, null, values);
-            Log.d(TAG, "Cambio pendiente guardado para paciente " + pacienteId);
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error al guardar cambio pendiente: " + e.getMessage());
-        }
+        dataManager.guardarCambioPendiente(pacienteId, eliminar, datosPaciente);
     }
 
     // ============================================
@@ -109,7 +69,7 @@ public class SincronizacionManager {
 
         // Si no hay nada que sincronizar
         if (!hayCambios && !haySesiones) {
-            listener.onCompletado(0, 0);
+            comprobarEliminacionesRechazadas(listener);
             return;
         }
 
@@ -140,7 +100,7 @@ public class SincronizacionManager {
                         }
 
                         // Sin conflictos → pasar a sincronizar sesiones
-                        sincronizarSesiones(listener);
+                        sincronizarSesionesYComprobarEliminaciones(listener);
 
                     } catch (Exception e) {
                         listener.onError("Error al procesar respuesta del servidor");
@@ -155,7 +115,7 @@ public class SincronizacionManager {
 
         } else {
             // Solo hay sesiones que subir
-            sincronizarSesiones(listener);
+            sincronizarSesionesYComprobarEliminaciones(listener);
         }
     }
 
@@ -278,127 +238,15 @@ public class SincronizacionManager {
     // ============================================
 
     private JSONArray obtenerCambiosPendientes() {
-        JSONArray cambios = new JSONArray();
-        Cursor cursor = null;
-
-        try {
-            SQLiteDatabase db = dbHelper.getReadableDatabase();
-            cursor = db.query(
-                    PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
-                    null, null, null, null, null,
-                    PacienteDBHelper.COLUMN_BP_FECHA + " ASC"
-                    // ↑ Los más antiguos primero
-            );
-
-            if (cursor != null && cursor.moveToFirst()) {
-                do {
-                    JSONObject cambio = new JSONObject();
-                    cambio.put("pacienteId", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(
-                                    PacienteDBHelper.COLUMN_BP_PACIENTE_ID)));
-                    cambio.put("eliminar", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(
-                                    PacienteDBHelper.COLUMN_BP_ELIMINAR)) == 1);
-                    cambio.put("cic", cursor.getString(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_CIC)));
-                    cambio.put("dni", cursor.getString(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_DNI)));
-                    cambio.put("nombre", cursor.getString(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_NOMBRE)));
-                    cambio.put("apellido1", cursor.getString(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_APELLIDO1)));
-                    cambio.put("apellido2", cursor.getString(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_APELLIDO2)));
-                    cambio.put("edad", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_EDAD)));
-                    cambio.put("genero", cursor.getString(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_GENERO)));
-                    cambio.put("patologia", cursor.getString(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_PATOLOGIA)));
-                    cambio.put("medicacion", cursor.getString(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_MEDICACION)));
-                    cambio.put("intensidad", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_INTENSIDAD)));
-                    cambio.put("tiempo", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_TIEMPO)));
-                    cambio.put("intensidad2", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_INTENSIDAD2)));
-                    cambio.put("tiempo2", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_TIEMPO2)));
-
-                    cambios.put(cambio);
-
-                } while (cursor.moveToNext());
-            }
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error al obtener cambios pendientes: " + e.getMessage());
-        } finally {
-            if (cursor != null) cursor.close();
-        }
-
-        return cambios;
+        return dataManager.obtenerCambiosPendientes();
     }
 
     private JSONArray obtenerTodasLasSesiones() {
-        JSONArray sesiones = new JSONArray();
-        Cursor cursor = null;
-
-        try {
-            SQLiteDatabase db = dbHelper.getReadableDatabase();
-            cursor = db.query(
-                    PacienteDBHelper.TABLE_SESIONES,
-                    null, null, null, null, null,
-                    PacienteDBHelper.COLUMN_FECHA + " ASC"
-            );
-
-            if (cursor != null && cursor.moveToFirst()) {
-                do {
-                    JSONObject sesion = new JSONObject();
-                    sesion.put("pacienteId", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(
-                                    PacienteDBHelper.COLUMN_PACIENTE_ID)));
-                    sesion.put("dispositivo", cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    PacienteDBHelper.COLUMN_DISPOSITIVO)));
-                    sesion.put("fecha", cursor.getString(
-                            cursor.getColumnIndexOrThrow(
-                                    PacienteDBHelper.COLUMN_FECHA)));
-                    sesion.put("intensidad", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(
-                                    PacienteDBHelper.COLUMN_INTENSIDAD_SESION)));
-                    sesion.put("tiempo", cursor.getInt(
-                            cursor.getColumnIndexOrThrow(
-                                    PacienteDBHelper.COLUMN_TIEMPO_SESION)));
-                    sesiones.put(sesion);
-                } while (cursor.moveToNext());
-            }
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error al obtener sesiones: " + e.getMessage());
-        } finally {
-            if (cursor != null) cursor.close();
-        }
-
-        return sesiones;
+        return dataManager.obtenerTodasLasSesiones();
     }
 
     private boolean haySesionesLocales() {
-        Cursor cursor = null;
-        try {
-            SQLiteDatabase db = dbHelper.getReadableDatabase();
-            cursor = db.rawQuery(
-                    "SELECT COUNT(*) FROM " + PacienteDBHelper.TABLE_SESIONES,
-                    null);
-            if (cursor != null && cursor.moveToFirst()) {
-                return cursor.getInt(0) > 0;
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error al contar sesiones: " + e.getMessage());
-        } finally {
-            if (cursor != null) cursor.close();
-        }
-        return false;
+        return dataManager.haySesionesLocales();
     }
 
     // ============================================
@@ -406,81 +254,89 @@ public class SincronizacionManager {
     // ============================================
 
     private void eliminarCambiosPendientesDePaciente(int pacienteId) {
-        try {
-            SQLiteDatabase db = dbHelper.getWritableDatabase();
-            db.delete(
-                    PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
-                    PacienteDBHelper.COLUMN_BP_PACIENTE_ID + " = ?",
-                    new String[]{String.valueOf(pacienteId)}
-            );
-            Log.d(TAG, "Cambios eliminados para paciente " + pacienteId);
-        } catch (Exception e) {
-            Log.e(TAG, "Error al eliminar cambios: " + e.getMessage());
-        }
+        dataManager.eliminarCambiosPendientesDePaciente(pacienteId);
     }
 
     private void guardarPacientesEnLocal(JSONArray pacientes) throws Exception {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        db.beginTransaction();
-        try {
-            // Borrar todos antes de insertar los del servidor
-            db.delete(PacienteDBHelper.TABLE_PACIENTES, null, null);
-
-            for (int i = 0; i < pacientes.length(); i++) {
-                JSONObject p = pacientes.getJSONObject(i);
-                ContentValues values = new ContentValues();
-                values.put(PacienteDBHelper.COLUMN_ID, p.getInt("id"));
-                values.put(PacienteDBHelper.COLUMN_CIC, p.optString("cic"));
-                values.put(PacienteDBHelper.COLUMN_DNI, p.optString("dni"));
-                values.put(PacienteDBHelper.COLUMN_NOMBRE, p.optString("nombre"));
-                values.put(PacienteDBHelper.COLUMN_APELLIDO1, p.optString("apellido1"));
-                values.put(PacienteDBHelper.COLUMN_APELLIDO2, p.optString("apellido2"));
-                values.put(PacienteDBHelper.COLUMN_EDAD, p.optInt("edad"));
-                values.put(PacienteDBHelper.COLUMN_GENERO, p.optString("genero"));
-                values.put(PacienteDBHelper.COLUMN_PATOLOGIA, p.optString("patologia"));
-                values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, p.optString("medicacion"));
-                values.put(PacienteDBHelper.COLUMN_INTENSIDAD, p.optInt("intensidad"));
-                values.put(PacienteDBHelper.COLUMN_TIEMPO, p.optInt("tiempo"));
-                values.put(PacienteDBHelper.COLUMN_INTENSIDAD2, p.optInt("intensidad2"));
-                values.put(PacienteDBHelper.COLUMN_TIEMPO2, p.optInt("tiempo2"));
-                db.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
-            }
-            db.setTransactionSuccessful();
-        } finally {
-            db.endTransaction();
-        }
+        dataManager.guardarPacientesDesdeServidor(pacientes);
     }
 
     private void guardarSesionesEnLocal(JSONArray sesiones) throws Exception {
-        SQLiteDatabase db = dbHelper.getWritableDatabase();
-        db.beginTransaction();
-        try {
-            db.delete(PacienteDBHelper.TABLE_SESIONES, null, null);
-
-            for (int i = 0; i < sesiones.length(); i++) {
-                JSONObject s = sesiones.getJSONObject(i);
-                ContentValues values = new ContentValues();
-                values.put(PacienteDBHelper.COLUMN_SESION_ID, s.getInt("id"));
-                values.put(PacienteDBHelper.COLUMN_PACIENTE_ID, s.getInt("pacienteId"));
-                values.put(PacienteDBHelper.COLUMN_DISPOSITIVO, s.optString("dispositivo"));
-                values.put(PacienteDBHelper.COLUMN_FECHA, s.optString("fecha"));
-                values.put(PacienteDBHelper.COLUMN_INTENSIDAD_SESION, s.optInt("intensidad"));
-                values.put(PacienteDBHelper.COLUMN_TIEMPO_SESION, s.optInt("tiempo"));
-                db.insert(PacienteDBHelper.TABLE_SESIONES, null, values);
-            }
-            db.setTransactionSuccessful();
-        } finally {
-            db.endTransaction();
-        }
+        dataManager.guardarSesionesDesdeServidor(sesiones);
     }
+
+    private boolean hayEliminacionesPendientes() {
+        return !dataManager.obtenerTodasEliminacionesPendientes().isEmpty();
+    }
+
+    private void eliminarEliminacionPendiente(int pacienteId) {
+        dataManager.eliminarEliminacionPendiente(pacienteId);
+    }
+
+    private void comprobarEliminacionesRechazadas(SincronizacionListener listener) {
+        if (!hayEliminacionesPendientes()) {
+            listener.onCompletado(0, 0);
+            return;
+        }
+
+        apiClient.getEliminacionesRechazadas(new ApiClient.ApiCallback() {
+            @Override
+            public void onSuccess(JSONObject response) {
+                try {
+                    JSONArray rechazados = response.optJSONArray("rechazados");
+
+                    if (rechazados != null && rechazados.length() > 0) {
+                        // Limpiar eliminaciones_pendientes de los rechazados
+                        for (int i = 0; i < rechazados.length(); i++) {
+                            int pacienteId = rechazados.getJSONObject(i).getInt("pacienteId");
+                            eliminarEliminacionPendiente(pacienteId);
+                        }
+                        listener.onEliminacionesRechazadas(rechazados);
+                    } else {
+                        listener.onCompletado(0, 0);
+                    }
+                } catch (Exception e) {
+                    listener.onCompletado(0, 0);
+                }
+            }
+
+            @Override
+            public void onError(String mensaje) {
+                listener.onCompletado(0, 0);
+            }
+        });
+    }
+
+
 
     // ============================================
     // Interfaces de callback
     // ============================================
+    /*
     public interface SincronizacionListener {
         void onCompletado(int sincronizados, int conflictos);
         void onConflictos(JSONArray conflictos);
+
+        void onEliminacionesRechazadas(JSONArray r);
+
         void onError(String mensaje);
+    }*/
+    private void sincronizarSesionesYComprobarEliminaciones(SincronizacionListener listener) {
+        sincronizarSesiones(new SincronizacionListener() {
+            @Override
+            public void onCompletado(int sincronizados, int conflictos) {
+                comprobarEliminacionesRechazadas(listener);
+            }
+            @Override
+            public void onConflictos(JSONArray c) {}
+            @Override
+            public void onEliminacionesRechazadas(JSONArray r) {}
+            @Override
+            public void onError(String msg) {
+                // Error en sesiones → aun así comprobar eliminaciones
+                comprobarEliminacionesRechazadas(listener);
+            }
+        });
     }
 
     public interface DescargaListener {

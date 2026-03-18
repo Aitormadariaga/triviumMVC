@@ -1,10 +1,14 @@
 package com.example.triviumgor.controller;
 
+import android.content.Context;
 import android.database.Cursor;
 
 import com.example.triviumgor.database.PacienteDBHelper;
 import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.Paciente;
+import com.example.triviumgor.network.SincronizacionManager;
+
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +25,7 @@ public class PacienteController {
         public final boolean exito;
         public final String mensaje;
         public final long id; // ID del registro afectado (-1 si no aplica)
+
 
         private Resultado(boolean exito, String mensaje, long id) {
             this.exito = exito;
@@ -41,10 +46,23 @@ public class PacienteController {
         }
     }
 
+    // ← Añadir Context y SincronizacionManager
+    private final Context context;
     private final PacienteDataManager dataManager;
+    private final SincronizacionManager sincronizacionManager;
 
-    public PacienteController(PacienteDataManager dataManager) {
+    // ← Cambiar constructor para aceptar Context
+    public PacienteController(Context context, PacienteDataManager dataManager) {
+        this.context = context;
         this.dataManager = dataManager;
+        this.sincronizacionManager = new SincronizacionManager(context, dataManager);
+    }
+
+    // ← Mantener compatibilidad con el constructor antiguo
+    public PacienteController(PacienteDataManager dataManager) {
+        this.context = null;
+        this.dataManager = dataManager;
+        this.sincronizacionManager = null;
     }
 
     // ========================
@@ -245,14 +263,40 @@ public class PacienteController {
             return Resultado.error("La intensidad y el tiempo deben ser números");
         }
 
-        int resultado = dataManager.actualizarPaciente(id, dni, nombre, apellido1, apellido2, edad, genero,
-                patologia, medicacion, intensidad, tiempo, cic);
+        // 1. Guardar en SQLite local
+        int resultado = dataManager.actualizarPaciente(id, dni, nombre, apellido1,
+                apellido2, edad, genero, patologia, medicacion, intensidad, tiempo, cic);
 
-        if (resultado != -1) {
-            return Resultado.ok("Paciente actualizado correctamente", id);
-        } else {
+        if (resultado == -1) {
             return Resultado.error("Error al actualizar el paciente");
         }
+
+        // 2. Guardar cambio pendiente para sincronizar con el servidor
+        if (sincronizacionManager != null) {
+            try {
+                JSONObject datosPaciente = new JSONObject();
+                datosPaciente.put("cic",        cic);
+                datosPaciente.put("dni",        dni);
+                datosPaciente.put("nombre",     nombre);
+                datosPaciente.put("apellido1",  apellido1);
+                datosPaciente.put("apellido2",  apellido2 != null ? apellido2 : "");
+                datosPaciente.put("edad",       edad);
+                datosPaciente.put("genero",     genero);
+                datosPaciente.put("patologia",  patologia);
+                datosPaciente.put("medicacion", medicacion);
+                datosPaciente.put("intensidad", intensidad);
+                datosPaciente.put("tiempo",     tiempo);
+                datosPaciente.put("intensidad2", 0);
+                datosPaciente.put("tiempo2",    0);
+
+                sincronizacionManager.guardarCambioPendiente(id, false, datosPaciente);
+
+            } catch (Exception e) {
+                // No bloqueamos si falla el guardado del backup
+            }
+        }
+
+        return Resultado.ok("Paciente actualizado correctamente", id);
     }
 
     /**
@@ -283,20 +327,81 @@ public class PacienteController {
             return Resultado.error("La intensidad y el tiempo deben ser números");
         }
 
-        int resultado = dataManager.actualizarPaciente2disp(id, dni, nombre, apellido1, apellido2, edad, genero,
-                patologia, medicacion, intensidad, tiempo, intensidad2, tiempo2, cic);
+        // 1. Guardar en SQLite local
+        int resultado = dataManager.actualizarPaciente2disp(id, dni, nombre, apellido1,
+                apellido2, edad, genero, patologia, medicacion,
+                intensidad, tiempo, intensidad2, tiempo2, cic);
 
-        if (resultado != -1) {
-            return Resultado.ok("Paciente actualizado correctamente", id);
-        } else {
+        if (resultado == -1) {
             return Resultado.error("Error al actualizar el paciente");
         }
+
+        // 2. Guardar cambio pendiente
+        if (sincronizacionManager != null) {
+            try {
+                JSONObject datosPaciente = new JSONObject();
+                datosPaciente.put("cic",         cic);
+                datosPaciente.put("dni",         dni);
+                datosPaciente.put("nombre",      nombre);
+                datosPaciente.put("apellido1",   apellido1);
+                datosPaciente.put("apellido2",   apellido2 != null ? apellido2 : "");
+                datosPaciente.put("edad",        edad);
+                datosPaciente.put("genero",      genero);
+                datosPaciente.put("patologia",   patologia);
+                datosPaciente.put("medicacion",  medicacion);
+                datosPaciente.put("intensidad",  intensidad);
+                datosPaciente.put("tiempo",      tiempo);
+                datosPaciente.put("intensidad2", intensidad2);
+                datosPaciente.put("tiempo2",     tiempo2);
+
+                sincronizacionManager.guardarCambioPendiente(id, false, datosPaciente);
+
+            } catch (Exception e) {
+                // No bloqueamos si falla el guardado del backup
+            }
+        }
+
+        return Resultado.ok("Paciente actualizado correctamente", id);
     }
 
     /**
      * Elimina un paciente y reinicia el autoincrement.
      */
     public Resultado eliminarPaciente(int id) {
+        // 1. Antes de eliminar → obtener datos actuales del paciente
+        //    para guardarlos en el backup
+        if (sincronizacionManager != null) {
+            try {
+                Paciente p = obtenerPacientePorId(id, 3);
+                if (p != null) {
+                    JSONObject datosPaciente = new JSONObject();
+                    datosPaciente.put("cic",         p.getCIC());
+                    datosPaciente.put("dni",         p.getDNI());
+                    datosPaciente.put("nombre",      p.getNombre());
+                    datosPaciente.put("apellido1",   p.getAp1());
+                    datosPaciente.put("apellido2",   p.getAp2() != null ? p.getAp2() : "");
+                    datosPaciente.put("edad",        p.getEdad());
+                    datosPaciente.put("genero",      p.getGenero() != null ? p.getGenero().name() : "");
+                    datosPaciente.put("patologia",   p.getPatologia());
+                    datosPaciente.put("medicacion",  p.getMedicacion());
+                    datosPaciente.put("intensidad",  p.getIntensidad());
+                    datosPaciente.put("tiempo",      p.getTiempoM());
+                    datosPaciente.put("intensidad2", p.getIntensidad2());
+                    datosPaciente.put("tiempo2",     p.getTiempoM2());
+
+                    // eliminar = true → el servidor lo marcará como ELIMINADO
+                    sincronizacionManager.guardarCambioPendiente(id, true, datosPaciente);
+                }
+            } catch (Exception e) {
+                // No bloqueamos si falla el guardado del backup
+            }
+        }
+
+        // 2. Guardar en eliminaciones_pendientes para que no reaparezca
+        //    en sincronizaciones durante esta semana
+        dataManager.guardarEliminacionPendiente(id);
+
+        // 3. Eliminar de SQLite local
         boolean eliminado = dataManager.eliminarPaciente(id);
         if (!eliminado) {
             return Resultado.error("Error al borrar el paciente");
@@ -654,4 +759,6 @@ public class PacienteController {
         return new Paciente(id, cic, dni, nombre, ap1, ap2, edad, genero, patologia, medicacion,
                 intensidad, tiempo, intensidad2, tiempo2);
     }
+
+
 }
