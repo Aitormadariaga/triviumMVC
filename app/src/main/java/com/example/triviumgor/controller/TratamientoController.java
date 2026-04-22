@@ -1,6 +1,7 @@
 package com.example.triviumgor.controller;
 
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.example.triviumgor.model.DispositivoState;
@@ -40,12 +41,15 @@ public class TratamientoController {
     }
 
     private final TratamientoListener listener;
-    private final Handler timeHandler1 = new Handler();
-    private final Handler timeHandler2 = new Handler();
+    // Handlers anclados al Looper del hilo principal. Usar new Handler() sin
+    // Looper explicito depende del hilo de instanciacion y es fragil ante
+    // refactors (falla si se crea el controller desde un thread sin Looper).
+    private final Handler timeHandler1 = new Handler(Looper.getMainLooper());
+    private final Handler timeHandler2 = new Handler(Looper.getMainLooper());
 
     // Handlers independientes para el sondeo periódico de batería (cada 30s mientras conectado)
-    private final Handler batteryPollHandler1 = new Handler();
-    private final Handler batteryPollHandler2 = new Handler();
+    private final Handler batteryPollHandler1 = new Handler(Looper.getMainLooper());
+    private final Handler batteryPollHandler2 = new Handler(Looper.getMainLooper());
 
     private int minutoAnt1 = -1;
     private int minutoAnt2 = -1;
@@ -230,8 +234,16 @@ public class TratamientoController {
         for (byte b : trama) {
             os.write(b);
             os.flush();
-            // Delay entre bytes (equivalente al for vacío del original)
-            for (int s = 60000; s > 0; s--) ;
+            // Pequeño delay entre bytes para que el firmware del dispositivo
+            // procese cada uno. Antes era un busy-wait (for vacío) que en ARM
+            // moderno podía optimizarse a 0 por el JIT; Thread.sleep garantiza
+            // un delay predecible.
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Envio de trama interrumpido", e);
+            }
         }
     }
 
@@ -428,7 +440,25 @@ public class TratamientoController {
 
                     while (nBytes >= 4) {
                         int j = 0;
-                        while (recBuffer[j] < 2 || recBuffer[j] > 3) j++;
+                        // Buscar header (valor 2 o 3) sin salirnos del buffer.
+                        // Necesitamos también j+1 válido para leer el siguiente byte.
+                        while (j < recBuffer.length - 1
+                                && (recBuffer[j] < 2 || recBuffer[j] > 3)) {
+                            j++;
+                        }
+
+                        // Si no hay header válido o solo queda el último byte
+                        // sin sucesor, descartamos el buffer y seguimos leyendo.
+                        // Puede ocurrir por ruido BT, respuestas de otros comandos
+                        // o buffer residual tras reconexión.
+                        if (j >= recBuffer.length - 1
+                                || recBuffer[j] < 2 || recBuffer[j] > 3) {
+                            Log.w(TAG, "Header de batería no encontrado, descartando buffer");
+                            java.util.Arrays.fill(recBuffer, (byte) 0);
+                            indiceRec = 0;
+                            nBytes = 0;
+                            break;
+                        }
 
                         indiceRec = 0;
                         Log.d(TAG, "Recibidos Total Bytes: " + nBytes);

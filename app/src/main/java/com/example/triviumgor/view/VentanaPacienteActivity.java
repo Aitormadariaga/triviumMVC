@@ -437,7 +437,8 @@ public class VentanaPacienteActivity extends AppCompatActivity {
                 editNombre.setText(pac.getNombre());
                 editApellido1.setText(pac.getAp1());
                 if (pac.getAp2() != null) editApellido2.setText(pac.getAp2());
-                if (pac.getEdad() >= 0) editEdad.setText(String.valueOf(pac.getEdad()));
+                // La edad es opcional; 0 se considera "sin especificar" y deja el campo vacío.
+                if (pac.getEdad() > 0) editEdad.setText(String.valueOf(pac.getEdad()));
                 if (pac.getPatologia() != null) editPatologia.setText(pac.getPatologia());
                 if (pac.getGenero() != null) {
                     if (pac.getGenero() == Paciente.Genero.MASCULINO) {
@@ -496,7 +497,7 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         tvDNI.setText("DNI: " + paciente.getDNI());
         tvCIC.setText("CIC: " + paciente.getCIC());
         tvNombreCompleto.setText("Nombre: " + paciente.getNombreCompleto());
-        tvEdad.setText("Edad: " + paciente.getEdad());
+        tvEdad.setText("Edad: " + (paciente.getEdad() > 0 ? paciente.getEdad() : "--"));
         tvGenero.setText("Genero: " + paciente.getGenero().getEtiqueta());
         tvPatologia.setText("Patología: " + paciente.getPatologia());
         tvMedicacion.setText("Medicación: " + paciente.getMedicacion());

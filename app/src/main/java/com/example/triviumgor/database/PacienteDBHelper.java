@@ -17,7 +17,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     // ⚠️ IMPORTANTE: Se incrementó la versión de 2 a 3 para que onUpgrade()
     //    cree la nueva tabla usuario_paciente en dispositivos ya instalados.
     //si volvemos a modificar el esquema subirías a 4 y añadirías un bloque if (oldVersion < 3) en onUpgrade()
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 5;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -71,7 +71,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     //Tabla USUARIO_SESION
     public static final String TABLE_USUARIO_SESION = "usuario_sesion";
     public static final String COLUMN_US_USUARIO_ID = "id_usuario";
-    public static final String COLUMN_US_SESION_ID = "id_paciente";
+    public static final String COLUMN_US_SESION_ID = "id_sesion";
 
     // Sentencia SQL para crear la tabla
     private static final String SQL_CREATE_PACIENTES =
@@ -243,6 +243,19 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             Log.d("PacienteDBHelper", "Tabla usuario_sesion creada en migración");
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error al crear tabla usuario_sesion: " + e.getMessage());
+        }
+    }
+    if (oldVersion < 5) {
+        // Migración v4 → v5: en v4 la columna FK hacia sesiones se creó con el
+        // nombre incorrecto "id_paciente" por un typo en la constante.
+        // Se recrea la tabla con el nombre correcto ("id_sesion"). Se pierden
+        // las asignaciones usuario↔sesión existentes, aceptable en desarrollo.
+        try {
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_USUARIO_SESION);
+            db.execSQL(SQL_CREATE_USUARIO_SESION);
+            Log.d("PacienteDBHelper", "Tabla usuario_sesion recreada con columna id_sesion");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error al recrear usuario_sesion: " + e.getMessage());
         }
     }
 }

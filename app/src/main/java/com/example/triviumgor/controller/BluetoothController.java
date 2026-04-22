@@ -84,21 +84,15 @@ public class BluetoothController {
      * Lee las direcciones MAC desde el archivo raw/dir_macs.
      */
     public void leerArchivoMACs() {
-        try {
-            InputStream fis = context.getResources().openRawResource(R.raw.dir_macs);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
-            String linea = reader.readLine();
-            indiceDirMACs = 0;
-
-            while (linea != null) {
+        indiceDirMACs = 0;
+        try (InputStream fis = context.getResources().openRawResource(R.raw.dir_macs);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(fis))) {
+            String linea;
+            while ((linea = reader.readLine()) != null && indiceDirMACs < dirMacs.length) {
                 dirMacs[indiceDirMACs] = linea.trim();
+                Log.d(TAG, "MAC leída: " + dirMacs[indiceDirMACs]);
                 indiceDirMACs++;
-                linea = reader.readLine();
-                Log.d(TAG, "MAC leída: " + linea);
             }
-
-            reader.close();
-            fis.close();
             Log.d(TAG, "Total MACs leídas: " + indiceDirMACs);
         } catch (IOException e) {
             Log.e(TAG, "Error al leer archivo MACs: " + e.getMessage());

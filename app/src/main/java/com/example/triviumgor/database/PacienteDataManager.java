@@ -492,30 +492,50 @@ public class PacienteDataManager {
      * @return true si se eliminó correctamente, false en caso contrario
      */
     public boolean eliminarPaciente(long idPaciente) {
+        database.beginTransaction();
         try {
-            // Primero eliminar las sesiones asociadas al paciente
+            // 1. Borrar relaciones usuario_sesion de las sesiones del paciente
+            //    (si no, al borrar sesiones quedan huérfanos en usuario_sesion).
+            database.execSQL(
+                    "DELETE FROM " + PacienteDBHelper.TABLE_USUARIO_SESION +
+                            " WHERE " + PacienteDBHelper.COLUMN_US_SESION_ID +
+                            " IN (SELECT " + PacienteDBHelper.COLUMN_SESION_ID +
+                            " FROM " + PacienteDBHelper.TABLE_SESIONES +
+                            " WHERE " + PacienteDBHelper.COLUMN_PACIENTE_ID + " = ?)",
+                    new Object[]{idPaciente}
+            );
+
+            // 2. Borrar las sesiones del paciente
             database.delete(
                     PacienteDBHelper.TABLE_SESIONES,
                     PacienteDBHelper.COLUMN_PACIENTE_ID + " = ?",
                     new String[] { String.valueOf(idPaciente) }
             );
 
-            // Eliminar vínculos usuario_paciente
+            // 3. Borrar vínculos usuario_paciente
             database.delete(
                     PacienteDBHelper.TABLE_USUARIO_PACIENTE,
                     PacienteDBHelper.COLUMN_UP_PACIENTE_ID + " = ?",
                     new String[]{String.valueOf(idPaciente)}
             );
 
-            // Luego eliminar el paciente
-            return database.delete(
+            // 4. Borrar el paciente. Si no existía, rollback (no tocamos nada).
+            int filasBorradas = database.delete(
                     PacienteDBHelper.TABLE_PACIENTES,
                     PacienteDBHelper.COLUMN_ID + " = ?",
                     new String[] { String.valueOf(idPaciente) }
-            ) > 0;
+            );
+            if (filasBorradas <= 0) {
+                return false;
+            }
+
+            database.setTransactionSuccessful();
+            return true;
         } catch (SQLException e) {
             Log.e("ERROR", "Error al eliminar paciente: " + e.getMessage());
             return false;
+        } finally {
+            database.endTransaction();
         }
     }
 
@@ -713,15 +733,33 @@ public class PacienteDataManager {
      * @return true si se eliminó correctamente, false en caso contrario
      */
     public boolean eliminarSesion(int idSesion) {
+        database.beginTransaction();
         try {
-            return database.delete(
+            // 1. Borrar relaciones usuario_sesion antes que la sesión
+            //    (evita huérfanos en la tabla intermedia).
+            database.delete(
+                    PacienteDBHelper.TABLE_USUARIO_SESION,
+                    PacienteDBHelper.COLUMN_US_SESION_ID + " = ?",
+                    new String[]{String.valueOf(idSesion)}
+            );
+
+            // 2. Borrar la sesión. Si no existía, rollback.
+            int filasBorradas = database.delete(
                     PacienteDBHelper.TABLE_SESIONES,
                     PacienteDBHelper.COLUMN_SESION_ID + " = ?",
                     new String[]{String.valueOf(idSesion)}
-            ) > 0;
+            );
+            if (filasBorradas <= 0) {
+                return false;
+            }
+
+            database.setTransactionSuccessful();
+            return true;
         } catch (Exception e) {
             Log.e("PacienteDataManager", "Error al eliminar sesión: " + e.getMessage());
             return false;
+        } finally {
+            database.endTransaction();
         }
     }
 

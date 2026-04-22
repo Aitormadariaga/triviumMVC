@@ -70,10 +70,13 @@
             android:label="Administrar Usuarios"
             android:parentActivityName=".view.MainActivity" />
 
-        <!-- VentanaPacienteActivity -->
+        <!-- VentanaPacienteActivity.
+             configChanges evita recrear la Activity al girar: asi no se
+             pierden los campos del formulario ya rellenados por el usuario. -->
         <activity
             android:name=".view.VentanaPacienteActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
 
         <!-- HistorialSesionesActivity -->
         <activity

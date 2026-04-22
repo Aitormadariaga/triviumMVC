@@ -95,8 +95,9 @@ public class SesionController {
      * Elimina una sesión por su ID.
      */
     public boolean eliminarSesion(int idSesion) {
-        dataManager.eliminarRelacionesPorSesion(idSesion); // borra todas las relaciones de usuario-sesion, haya o no usuario
-        return dataManager.eliminarSesion(idSesion); //hay que primero borrar las relaciones y despues la sesion, se puede hacer esto en sqlite con cascade
+        // dataManager.eliminarSesion() borra ya las relaciones usuario_sesion
+        // y la sesión dentro de una misma transacción.
+        return dataManager.eliminarSesion(idSesion);
     }
 
     // ========================
