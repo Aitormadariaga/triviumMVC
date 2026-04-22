@@ -231,6 +231,17 @@
                   usuario<->sesion existentes (aceptable en desarrollo).
         Commit  : 8512e4f
 
+[X] #32 Formulario de crear paciente pierde datos al rotar el dispositivo
+        Archivo : AndroidManifest.xml  (VentanaPacienteActivity)
+        Sintoma : al rellenar varios campos y girar el tablet/movil, los
+                  EditText se quedaban vacios y habia que volver a escribir.
+        Aplicado: anadido android:configChanges="orientation|screenSize|
+                  screenLayout|smallestScreenSize" al <activity> de
+                  VentanaPacienteActivity. La Activity ya no se recrea al
+                  rotar, el estado del formulario se conserva intacto.
+                  Mismo enfoque que ya usaba MainActivity.
+        Commit  : TBD
+
 
 =====================================================================
  OBSERVACIONES ARQUITECTONICAS
@@ -260,16 +271,17 @@
  RESUMEN
 =====================================================================
 
- Total hallazgos: 31
+ Total hallazgos: 32
  Criticos: 6    (2 corregidos: #3, #4)
  Altos:    9    (1 corregido:  #8)
  Medios:   11
  Bajos:    4
- Extras:   1    (corregido: #31)
+ Extras:   2    (corregidos: #31, #32)
 
  Corregidos hasta ahora:
-   [X] #4  NPE callback BT        -> commit 55a2eeb
-   [X] #8  IndexOutOfBounds bat   -> commit 55a2eeb
-   [X] #3  Cascadas BD sin trans. -> commit decccbe
+   [X] #4  NPE callback BT          -> commit 55a2eeb
+   [X] #8  IndexOutOfBounds bat     -> commit 55a2eeb
+   [X] #3  Cascadas BD sin trans.   -> commit decccbe
    [X] #31 Typo COLUMN_US_SESION_ID -> commit 8512e4f
+   [X] #32 Rotacion perdia campos   -> commit TBD
 
