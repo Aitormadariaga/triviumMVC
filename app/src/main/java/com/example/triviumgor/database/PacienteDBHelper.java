@@ -247,6 +247,22 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
     }
 }
 
+    @Override
+    public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // Si el fichero de BBDD está en una versión más nueva que la del código
+        // (p. ej. otra build con más migraciones), SQLite por defecto aborta.
+        // Aquí descartamos todo y lo recreamos limpio con el esquema actual.
+        // ⚠️ Esto implica pérdida de datos existentes.
+        Log.w("PacienteDBHelper", "Downgrade de v" + oldVersion + " a v" + newVersion
+                + ": se recreará el esquema (se pierden los datos).");
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USUARIO_SESION);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USUARIO_PACIENTE);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_SESIONES);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_PACIENTES);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USUARIOS);
+        onCreate(db);
+    }
+
     /**
      * Inserta un usuario administrador por defecto
      */

@@ -144,6 +144,7 @@ public class MainActivity extends AppCompatActivity
                     return;
                 }
                 tratamientoController.finalizarSesion(dispositivo1);
+                tratamientoController.detenerMonitorizacionBateria(dispositivo1);
                 dispositivo1.resetCompleto();
 
                 runOnUiThread(() -> {
@@ -165,6 +166,7 @@ public class MainActivity extends AppCompatActivity
                     return;
                 }
                 tratamientoController.finalizarSesion(dispositivo2);
+                tratamientoController.detenerMonitorizacionBateria(dispositivo2);
                 dispositivo2.resetCompleto();
 
                 runOnUiThread(() -> {
@@ -395,7 +397,7 @@ public class MainActivity extends AppCompatActivity
                     dispBluetoothNom1.setVisibility(View.VISIBLE);
                     iconBatt1.setImageResource(R.drawable.ic_battery_unknown);
                     iconBatt1.setVisibility(View.VISIBLE);
-                    tratamientoController.solicitarBateria(dispositivo1);
+                    tratamientoController.iniciarMonitorizacionBateria(dispositivo1);
 
                     // Proteger contra ACL_DISCONNECTED espurio de conexión anterior
                     recentlyConnected1 = true;
@@ -436,7 +438,7 @@ public class MainActivity extends AppCompatActivity
                     dispBluetoothNom2.setVisibility(View.VISIBLE);
                     iconBatt2.setImageResource(R.drawable.ic_battery_unknown);
                     iconBatt2.setVisibility(View.VISIBLE);
-                    tratamientoController.solicitarBateria(dispositivo2);
+                    tratamientoController.iniciarMonitorizacionBateria(dispositivo2);
 
                     // Proteger contra ACL_DISCONNECTED espurio de conexión anterior
                     recentlyConnected2 = true;
@@ -820,6 +822,7 @@ public class MainActivity extends AppCompatActivity
                                         Button btnInicio, Button btnFin, TextView lblNombre,
                                         ImageView iconBatt) {
         tratamientoController.finalizarSesion(disp);
+        tratamientoController.detenerMonitorizacionBateria(disp);
         try {
             if (disp.getBtSocket() != null) disp.getBtSocket().close();
         } catch (Exception e) {

@@ -18,7 +18,7 @@ public class TratamientoController {
 
     private static final String TAG = "TratamientoController";
     private static final int TIMER_INTERVAL_MS = 20000;
-    private static final int BATTERY_CHECK_INTERVAL_MIN = 5;
+    private static final int BATTERY_POLL_INTERVAL_MS = 30000;
     private static final int ANCHO_PULSO_DEFAULT = 4;
     private static final int PERIODO_MS_DEFAULT = 100;
 
@@ -42,6 +42,10 @@ public class TratamientoController {
     private final TratamientoListener listener;
     private final Handler timeHandler1 = new Handler();
     private final Handler timeHandler2 = new Handler();
+
+    // Handlers independientes para el sondeo periódico de batería (cada 30s mientras conectado)
+    private final Handler batteryPollHandler1 = new Handler();
+    private final Handler batteryPollHandler2 = new Handler();
 
     private int minutoAnt1 = -1;
     private int minutoAnt2 = -1;
@@ -130,14 +134,8 @@ public class TratamientoController {
         dispositivo.setClockStopped(true);
         detenerTimer(dispositivo);
 
-        // Cancelar thread de lectura de batería
-        if (dispositivo.getNumero() == 1 && batteryThread1 != null) {
-            batteryThread1.cancel();
-            batteryThread1 = null;
-        } else if (dispositivo.getNumero() == 2 && batteryThread2 != null) {
-            batteryThread2.cancel();
-            batteryThread2 = null;
-        }
+        // La monitorización de batería sigue activa mientras el dispositivo esté conectado.
+        // Se detiene solo al desconectar (detenerMonitorizacionBateria).
 
         Log.d(TAG, "Sesión finalizada en dispositivo " + dispositivo.getNumero());
     }
@@ -273,10 +271,8 @@ public class TratamientoController {
                         int restante = dispositivo.getDuracionMin() - dispositivo.getMinutoTranscurrido();
                         listener.onTiempoRestanteActualizado(dispositivo.getNumero(), restante);
 
-                        // Cada 5 minutos: solicitar batería
-                        if (dispositivo.getMinutoTranscurrido() % BATTERY_CHECK_INTERVAL_MIN == 0) {
-                            solicitarBateria(dispositivo);
-                        }
+                        // Batería: ya no se consulta aquí; lo gestiona el polling periódico
+                        // de iniciarMonitorizacionBateria() mientras el dispositivo esté conectado.
 
                         // Tiempo agotado
                         if (dispositivo.isTiempoAgotado()) {
@@ -323,16 +319,64 @@ public class TratamientoController {
 
     /**
      * Inicia un thread de lectura de batería para un dispositivo.
+     * Si ya hay un thread vivo leyendo, se reutiliza para evitar que dos hilos
+     * lean del mismo InputStream simultáneamente.
      */
     private void iniciarLecturaBateria(DispositivoState dispositivo) {
         if (dispositivo.getNumero() == 1) {
-            if (batteryThread1 != null) batteryThread1.cancel();
+            if (batteryThread1 != null && batteryThread1.isAlive()) {
+                return;
+            }
             batteryThread1 = new BatteryReaderThread(dispositivo);
             batteryThread1.start();
         } else {
-            if (batteryThread2 != null) batteryThread2.cancel();
+            if (batteryThread2 != null && batteryThread2.isAlive()) {
+                return;
+            }
             batteryThread2 = new BatteryReaderThread(dispositivo);
             batteryThread2.start();
+        }
+    }
+
+    /**
+     * Arranca la monitorización continua de batería: pide batería inmediatamente
+     * y programa una nueva petición cada 30 segundos mientras el dispositivo esté conectado.
+     * Independiente del estado de sesión.
+     */
+    public void iniciarMonitorizacionBateria(final DispositivoState dispositivo) {
+        final Handler handler = (dispositivo.getNumero() == 1) ? batteryPollHandler1 : batteryPollHandler2;
+        handler.removeCallbacksAndMessages(null);
+
+        Runnable pollTask = new Runnable() {
+            @Override
+            public void run() {
+                if (!dispositivo.isConnected()) {
+                    return;
+                }
+                solicitarBateria(dispositivo);
+                handler.postDelayed(this, BATTERY_POLL_INTERVAL_MS);
+            }
+        };
+        handler.post(pollTask);
+    }
+
+    /**
+     * Detiene la monitorización continua de batería y el thread lector.
+     * Llamar al desconectar el dispositivo.
+     */
+    public void detenerMonitorizacionBateria(DispositivoState dispositivo) {
+        if (dispositivo.getNumero() == 1) {
+            batteryPollHandler1.removeCallbacksAndMessages(null);
+            if (batteryThread1 != null) {
+                batteryThread1.cancel();
+                batteryThread1 = null;
+            }
+        } else {
+            batteryPollHandler2.removeCallbacksAndMessages(null);
+            if (batteryThread2 != null) {
+                batteryThread2.cancel();
+                batteryThread2 = null;
+            }
         }
     }
 
@@ -445,6 +489,8 @@ public class TratamientoController {
     public void destroy() {
         timeHandler1.removeCallbacksAndMessages(null);
         timeHandler2.removeCallbacksAndMessages(null);
+        batteryPollHandler1.removeCallbacksAndMessages(null);
+        batteryPollHandler2.removeCallbacksAndMessages(null);
 
         if (batteryThread1 != null) {
             batteryThread1.cancel();
