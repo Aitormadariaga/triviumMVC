@@ -66,12 +66,12 @@
  ALTO   (bugs reales que afectan el uso)
 =====================================================================
 
-[ ] #7  Handlers sin Looper.getMainLooper() explicito
-        Archivo: TratamientoController.java:43-48
-        Codigo : new Handler()  (sin especificar Looper)
-        Impacto: solo funciona "por suerte" si se instancia desde UI
-                 thread. Frágil ante refactors.
-        Fix    : new Handler(Looper.getMainLooper()).
+[X] #7  Handlers sin Looper.getMainLooper() explicito
+        Archivo : TratamientoController.java:43-52
+        Aplicado: los 4 Handler (timeHandler1/2, batteryPollHandler1/2)
+                  ahora se anclan explicitamente a Looper.getMainLooper().
+                  Se anade el import de android.os.Looper.
+        Commit  : TBD
 
 [X] #8  IndexOutOfBounds en lectura de bateria
         Archivo: TratamientoController.java:431
@@ -81,12 +81,17 @@
                  residual tras reconexion).
         Commit : 55a2eeb  (2026-04-22)
 
-[ ] #9  Busy-wait bloqueante en UI thread
-        Archivo: TratamientoController.java:234
-        Codigo : for (int s = 60000; s > 0; s--) ;
-        Impacto: consume CPU al 100% durante el delay y congela la UI.
-        Fix    : reemplazar por Thread.sleep(delay) en thread aparte,
-                 o un postDelayed.
+[X] #9  Busy-wait bloqueante en UI thread
+        Archivo : TratamientoController.java:230-240 (enviarTrama)
+        Aplicado: sustituido el for vacio por Thread.sleep(1) entre bytes.
+                  En ARM moderno el busy-wait podia ser optimizado a 0 por
+                  el JIT; Thread.sleep garantiza un delay predecible para
+                  que el firmware del dispositivo procese cada byte.
+                  Se maneja InterruptedException relanzando IOException.
+                  Nota: el envio sigue corriendo en UI thread; se podria
+                  mover a thread de fondo en el futuro si la congelacion
+                  de ~N ms (N = tamano de trama) resulta molesta.
+        Commit  : TBD
 
 [ ] #10 Memory leak de Runnable de timer
         Archivo: TratamientoController.java:242-250, 385-481
@@ -103,11 +108,14 @@
         Fix    : WeakReference a Activity, o comprobar isDestroyed()
                  al entrar al callback.
 
-[ ] #12 Resource leak en leerArchivoMACs()
-        Archivo: BluetoothController.java:86-106
-        Impacto: InputStream / BufferedReader se dejan abiertos si
-                 hay excepcion antes del close.
-        Fix    : try-with-resources.
+[X] #12 Resource leak en leerArchivoMACs()
+        Archivo : BluetoothController.java:86-98
+        Aplicado: try-with-resources para InputStream y BufferedReader
+                  (se cierran siempre, tambien ante excepcion).
+                  De paso se arregla el log (antes imprimia la linea
+                  siguiente, terminando en null) y se evita desbordar
+                  el array dirMacs si el fichero tuviera mas de 20 MACs.
+        Commit  : TBD
 
 [ ] #13 Parse de EditText sin validar rango
         Archivo: MainActivity.java:460-461, 483-484, 687-689
@@ -240,7 +248,7 @@
                   VentanaPacienteActivity. La Activity ya no se recrea al
                   rotar, el estado del formulario se conserva intacto.
                   Mismo enfoque que ya usaba MainActivity.
-        Commit  : TBD
+        Commit  : 74c8c45
 
 
 =====================================================================
@@ -273,7 +281,7 @@
 
  Total hallazgos: 32
  Criticos: 6    (2 corregidos: #3, #4)
- Altos:    9    (1 corregido:  #8)
+ Altos:    9    (4 corregidos: #7, #8, #9, #12)
  Medios:   11
  Bajos:    4
  Extras:   2    (corregidos: #31, #32)
@@ -283,5 +291,8 @@
    [X] #8  IndexOutOfBounds bat     -> commit 55a2eeb
    [X] #3  Cascadas BD sin trans.   -> commit decccbe
    [X] #31 Typo COLUMN_US_SESION_ID -> commit 8512e4f
-   [X] #32 Rotacion perdia campos   -> commit TBD
+   [X] #32 Rotacion perdia campos   -> commit 74c8c45
+   [X] #9  Busy-wait en enviarTrama -> commit TBD
+   [X] #7  Handlers sin Looper      -> commit TBD
+   [X] #12 Resource leak MACs       -> commit TBD
 

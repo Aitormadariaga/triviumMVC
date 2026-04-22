@@ -1,6 +1,7 @@
 package com.example.triviumgor.controller;
 
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.example.triviumgor.model.DispositivoState;
@@ -40,12 +41,15 @@ public class TratamientoController {
     }
 
     private final TratamientoListener listener;
-    private final Handler timeHandler1 = new Handler();
-    private final Handler timeHandler2 = new Handler();
+    // Handlers anclados al Looper del hilo principal. Usar new Handler() sin
+    // Looper explicito depende del hilo de instanciacion y es fragil ante
+    // refactors (falla si se crea el controller desde un thread sin Looper).
+    private final Handler timeHandler1 = new Handler(Looper.getMainLooper());
+    private final Handler timeHandler2 = new Handler(Looper.getMainLooper());
 
     // Handlers independientes para el sondeo periódico de batería (cada 30s mientras conectado)
-    private final Handler batteryPollHandler1 = new Handler();
-    private final Handler batteryPollHandler2 = new Handler();
+    private final Handler batteryPollHandler1 = new Handler(Looper.getMainLooper());
+    private final Handler batteryPollHandler2 = new Handler(Looper.getMainLooper());
 
     private int minutoAnt1 = -1;
     private int minutoAnt2 = -1;
@@ -230,8 +234,16 @@ public class TratamientoController {
         for (byte b : trama) {
             os.write(b);
             os.flush();
-            // Delay entre bytes (equivalente al for vacío del original)
-            for (int s = 60000; s > 0; s--) ;
+            // Pequeño delay entre bytes para que el firmware del dispositivo
+            // procese cada uno. Antes era un busy-wait (for vacío) que en ARM
+            // moderno podía optimizarse a 0 por el JIT; Thread.sleep garantiza
+            // un delay predecible.
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Envio de trama interrumpido", e);
+            }
         }
     }
 
