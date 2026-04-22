@@ -129,10 +129,18 @@ public class PacienteController {
             return Resultado.error("Ya existe un paciente con ese DNI");
         }
 
-        // Parsear intensidad y tiempo
-        int intensidad, tiempo, edad;
+        // La edad es opcional: si viene vacía se guarda 0 (sin especificar).
+        int edad = 0;
         try {
-            edad = Integer.parseInt(edadStr.trim());
+            if (!edadStr.trim().isEmpty()) {
+                edad = Integer.parseInt(edadStr.trim());
+            }
+        } catch (NumberFormatException e) {
+            return Resultado.error("La edad debe ser un número");
+        }
+
+        int intensidad, tiempo;
+        try {
             intensidad = Integer.parseInt(intensidadStr.trim());
             tiempo = Integer.parseInt(tiempoStr.trim());
         } catch (NumberFormatException e) {
@@ -186,9 +194,18 @@ public class PacienteController {
             return Resultado.error("Ya existe un paciente con ese DNI");
         }
 
-        int intensidad, tiempo, intensidad2, tiempo2, edad;
+        // La edad es opcional: si viene vacía se guarda 0 (sin especificar).
+        int edad = 0;
         try {
-            edad = Integer.parseInt(edadStr.trim());
+            if (!edadStr.trim().isEmpty()) {
+                edad = Integer.parseInt(edadStr.trim());
+            }
+        } catch (NumberFormatException e) {
+            return Resultado.error("La edad debe ser un número");
+        }
+
+        int intensidad, tiempo, intensidad2, tiempo2;
+        try {
             intensidad = Integer.parseInt(intensidadStr.trim());
             tiempo = Integer.parseInt(tiempoStr.trim());
             intensidad2 = Integer.parseInt(intensidadStr2.trim());
@@ -236,9 +253,18 @@ public class PacienteController {
             return Resultado.error("Ya existe otro paciente con ese DNI");
         }
 
-        int intensidad, tiempo, edad;
+        // La edad es opcional: si viene vacía se guarda 0 (sin especificar).
+        int edad = 0;
         try {
-            edad = Integer.parseInt(edadStr.trim());
+            if (!edadStr.trim().isEmpty()) {
+                edad = Integer.parseInt(edadStr.trim());
+            }
+        } catch (NumberFormatException e) {
+            return Resultado.error("La edad debe ser un número");
+        }
+
+        int intensidad, tiempo;
+        try {
             intensidad = Integer.parseInt(intensidadStr.trim());
             tiempo = Integer.parseInt(tiempoStr.trim());
         } catch (NumberFormatException e) {
@@ -272,9 +298,18 @@ public class PacienteController {
             return Resultado.error("Ya existe otro paciente con ese DNI");
         }
 
-        int intensidad, tiempo, intensidad2, tiempo2, edad;
+        // La edad es opcional: si viene vacía se guarda 0 (sin especificar).
+        int edad = 0;
         try {
-            edad = Integer.parseInt(edadStr.trim());
+            if (!edadStr.trim().isEmpty()) {
+                edad = Integer.parseInt(edadStr.trim());
+            }
+        } catch (NumberFormatException e) {
+            return Resultado.error("La edad debe ser un número");
+        }
+
+        int intensidad, tiempo, intensidad2, tiempo2;
+        try {
             intensidad = Integer.parseInt(intensidadStr.trim());
             tiempo = Integer.parseInt(tiempoStr.trim());
             intensidad2 = Integer.parseInt(intensidadStr2.trim());

@@ -1,0 +1,275 @@
+=====================================================================
+ AUDITORIA TRIVIUMMVC - INFORME PRIORIZADO
+ Fecha inicial: 2026-04-22
+=====================================================================
+
+ Leyenda:
+   [ ] Pendiente
+   [~] En progreso
+   [X] Corregido  (anotar commit al lado)
+
+
+=====================================================================
+ CRITICO   (bloqueantes antes de produccion)
+=====================================================================
+
+[ ] #1  Contrasena admin hardcodeada
+        Archivo: PacienteDBHelper.java:273
+        Codigo : hashPassword("admin123")
+        Impacto: cualquiera que descompile el APK accede como admin.
+        Fix    : generar hash aleatorio en primer arranque y guardar
+                 en un fichero privado de la app.
+
+[ ] #2  BD medica sin cifrar en almacenamiento publico
+        Archivo: PacienteDBHelper.java:161-173 + LoginActivity.java:49-82
+        Ruta   : Environment.getExternalStoragePublicDirectory(
+                    DIRECTORY_DOCUMENTS)/TriviumData/trivium.db
+        Impacto: incumple GDPR y scoped storage de Android 10+.
+                 Cualquier app con acceso a almacenamiento puede leer
+                 pacientes, sesiones y usuarios.
+        Fix    : migrar a getFilesDir() + SQLCipher.
+
+[X] #3  Cascadas de borrado sin transaccion (scope ampliado)
+        Archivo: PacienteDataManager.java - eliminarPaciente + eliminarSesion
+        Aplicado: beginTransaction / setTransactionSuccessful / endTransaction
+                  en ambos metodos. Ademas se borra usuario_sesion antes de
+                  sesiones (evita huerfanos en la tabla intermedia) y se hace
+                  rollback si el paciente/sesion no existia. Simplificado
+                  SesionController.eliminarSesion (delegaba en dos llamadas
+                  separadas, ahora confia en la transaccion del DataManager).
+        Commit : decccbe
+
+[X] #4  NPE en callback BT tras desconexion inesperada
+        Archivo: MainActivity.java:393
+        Codigo : dispositivo1.getBtDevice().getName()
+        Impacto: app se cierra al pulsar Conectar si el dispositivo se
+                 desconecta justo tras el callback de conexion.
+        Commit : 55a2eeb  (2026-04-22)
+
+[ ] #5  Fallback a contrasena en texto plano si MessageDigest falla
+        Archivo: PacienteDBHelper.java:293
+        Impacto: si hashPassword() falla por cualquier motivo, guarda
+                 la contrasena SIN HASH en la BD.
+        Fix    : lanzar excepcion en vez del fallback.
+
+[ ] #6  allowBackup="true" + MANAGE_EXTERNAL_STORAGE en manifest
+        Archivo: AndroidManifest.xml:31, 36
+        Impacto: backup via ADB expone todos los datos clinicos.
+                 MANAGE_EXTERNAL_STORAGE es permiso peligroso que ya
+                 no hace falta si se migra a almacenamiento privado.
+        Fix    : allowBackup=false + quitar requestLegacyExternalStorage
+                 + quitar MANAGE_EXTERNAL_STORAGE tras migrar a
+                 getFilesDir().
+
+
+=====================================================================
+ ALTO   (bugs reales que afectan el uso)
+=====================================================================
+
+[ ] #7  Handlers sin Looper.getMainLooper() explicito
+        Archivo: TratamientoController.java:43-48
+        Codigo : new Handler()  (sin especificar Looper)
+        Impacto: solo funciona "por suerte" si se instancia desde UI
+                 thread. Frágil ante refactors.
+        Fix    : new Handler(Looper.getMainLooper()).
+
+[X] #8  IndexOutOfBounds en lectura de bateria
+        Archivo: TratamientoController.java:431
+        Codigo : while (recBuffer[j] < 2 || recBuffer[j] > 3) j++
+        Impacto: crash de toda la app si llegan bytes BT sin header
+                 valido (ruido, respuestas de otros comandos, buffer
+                 residual tras reconexion).
+        Commit : 55a2eeb  (2026-04-22)
+
+[ ] #9  Busy-wait bloqueante en UI thread
+        Archivo: TratamientoController.java:234
+        Codigo : for (int s = 60000; s > 0; s--) ;
+        Impacto: consume CPU al 100% durante el delay y congela la UI.
+        Fix    : reemplazar por Thread.sleep(delay) en thread aparte,
+                 o un postDelayed.
+
+[ ] #10 Memory leak de Runnable de timer
+        Archivo: TratamientoController.java:242-250, 385-481
+        Impacto: el closure del Runnable captura "dispositivo"; si la
+                 Activity se destruye sin llamar a detenerTimer(), el
+                 handler sigue referenciando objetos muertos.
+        Fix    : detenerTimer() en onDestroy / ViewModel con scope
+                 lifecycle-aware.
+
+[ ] #11 Lambdas de callback BT capturan "this" implicito
+        Archivo: MainActivity.java:387-412
+        Impacto: si la conexion tarda y la Activity muere antes del
+                 callback, hay referencia circular -> leak.
+        Fix    : WeakReference a Activity, o comprobar isDestroyed()
+                 al entrar al callback.
+
+[ ] #12 Resource leak en leerArchivoMACs()
+        Archivo: BluetoothController.java:86-106
+        Impacto: InputStream / BufferedReader se dejan abiertos si
+                 hay excepcion antes del close.
+        Fix    : try-with-resources.
+
+[ ] #13 Parse de EditText sin validar rango
+        Archivo: MainActivity.java:460-461, 483-484, 687-689
+        Codigo : Integer.parseInt(Param3.getText().toString())
+        Impacto: acepta valores fuera del limite del hardware (>19)
+                 antes de la validacion posterior.
+        Fix    : validar rango tras el parse y rechazar con mensaje
+                 claro al usuario.
+
+[ ] #14 Enum.valueOf(Genero) sin try-catch
+        Archivo: PacienteController.java:646 aprox.
+        Impacto: si la BD tiene un valor de genero corrupto / antiguo,
+                 crash al leer paciente.
+        Fix    : wrapper con default fallback.
+
+[ ] #15 Logs con PII (DNI, nombres) en Log.d()
+        Archivo: multiples (~135 logs dispersos)
+        Impacto: informacion sensible de pacientes visible en logcat
+                 incluso en builds de release.
+        Fix    : revisar y eliminar logs con datos de paciente;
+                 bajar a Log.v() y compilar fuera en release.
+
+
+=====================================================================
+ MEDIO   (deuda tecnica visible)
+=====================================================================
+
+[ ] #16 Duplicacion masiva dispositivo 1 vs dispositivo 2
+        Archivo: MainActivity.java   (~300 lineas duplicadas)
+        Sintomas: Conexion/Conexion2, Param3/Param10, listeners dobles,
+                 recentlyConnected1/2, etc.
+        Fix    : extraer a DispositivoController + coleccion /
+                 DispositivoState[] iterable. Bloquea soportar un
+                 3er dispositivo en el futuro.
+
+[ ] #17 Timers / handlers no se pausan en onPause()
+        Archivo: MainActivity.java + TratamientoController.java
+        Impacto: con la app en background se sigue consumiendo CPU
+                 y bateria del dispositivo BT.
+        Fix    : pausar en onPause(), reanudar en onResume().
+
+[ ] #18 insertarPacientesIniciales() comentado pero presente
+        Archivo: PacienteDBHelper.java:323-399
+        Impacto: codigo muerto confunde. O se borra, o se documenta
+                 por que esta desactivado.
+
+[ ] #19 TODOs pendientes bloqueando el workflow clinico
+        - Dialogo guardar config 2 dispositivos
+          Archivo: MainActivity.java:845
+        - Activity "Reportes Completos" solo muestra Toast
+          Archivo: MainActivity.java:1028
+        Impacto: admin sin acceso a estadisticas / auditoria.
+
+[ ] #20 Sin throttling de login
+        Archivo: PacienteDataManager.java:55-91 (verificarCredenciales)
+        Impacto: fuerza bruta trivial contra credenciales.
+        Fix    : contador de intentos + delay exponencial.
+
+[ ] #21 Sin indice en columna DNI
+        Archivo: PacienteDBHelper (schema)
+        Impacto: busqueda O(n) trayendo todos los pacientes a memoria.
+                 Con cientos de pacientes, lag visible.
+        Fix    : CREATE INDEX idx_pacientes_dni ON pacientes(dni).
+
+[ ] #22 Sin validacion de edad ni genero en formulario paciente
+        Archivo: VentanaPacienteActivity.java
+        Impacto: acepta edades negativas, genero vacio.
+        Fix    : validar en onSubmit antes de insertar.
+
+[ ] #23 minSdk 19 (Android 4.4, 2013)
+        Archivo: app/build.gradle
+        Impacto: bloquea APIs modernas y obliga a mantener workarounds.
+        Fix    : subir a minSdk 24 o 26 si no hay requisito de compat.
+
+[ ] #24 minifyEnabled false en release
+        Archivo: app/build.gradle
+        Impacto: APK facilmente descompilable; symbols legibles.
+        Fix    : minifyEnabled true + reglas ProGuard + guardar
+                 mapping.txt en sitio privado.
+
+[ ] #25 Strings hardcodeados en todo el codigo
+        Impacto: no hay strings.xml; imposible i18n y mantenimiento
+                 de textos dificil.
+        Fix    : mover progresivamente a res/values/strings.xml.
+
+[ ] #26 PacienteController inyecta PacienteDataManager concreto
+        Impacto: testing imposible sin BD real.
+        Fix    : introducir interfaz DataManager y DI basica.
+
+
+=====================================================================
+ BAJO   (pulido)
+=====================================================================
+
+[ ] #27 Nomenclatura UI sin semantica
+        Ejemplos: Otrotexto1, OtroTexto6, Param3, Param10.
+        Fix    : renombrar a algo descriptivo
+                 (intensidadInput1, duracionInput1, ...).
+
+[ ] #28 Javadoc incompleto en metodos publicos de controllers
+        Fix    : @param / @return en metodos clave.
+
+[ ] #29 SharedPreferences comentado
+        Archivo: MainActivity.java:224
+        Fix    : limpiar codigo comentado muerto.
+
+[ ] #30 if (error == (long)-1)
+        Fix    : cambiar a "if (error == -1L)".
+
+
+=====================================================================
+ HALLAZGOS EXTRA (descubiertos durante las correcciones)
+=====================================================================
+
+[X] #31 Typo en nombre de columna de la tabla usuario_sesion
+        Archivo : PacienteDBHelper.java:74
+        Codigo  : COLUMN_US_SESION_ID = "id_paciente"  ->  "id_sesion"
+        Aplicado: corregida la constante + bump DATABASE_VERSION 4 -> 5 +
+                  migracion v4->v5 en onUpgrade que hace DROP + recreate
+                  de la tabla usuario_sesion. Se pierden las asignaciones
+                  usuario<->sesion existentes (aceptable en desarrollo).
+        Commit  : 8512e4f
+
+
+=====================================================================
+ OBSERVACIONES ARQUITECTONICAS
+=====================================================================
+
+ A. MVC se rompe en MainActivity
+    Mezcla UI + gestion de estado de conexion + flags (recentlyConnected1).
+    Migrar a ViewModel + LiveData/Flow (AndroidX) resuelve ciclo de vida,
+    leaks y parte de la duplicacion a la vez.
+
+ B. Duplicacion dispositivo 1/2 es la mayor deuda (ver #16)
+    Imposible soportar un 3er dispositivo sin reescribir.
+    Extraer a DispositivoController + coleccion.
+
+ C. Operaciones multi-tabla no atomicas
+    Crear paciente + vincular usuario, etc. Envolver en beginTransaction.
+
+ D. Gestion de lifecycle incompleta (ver #17)
+    onPause / onStop no paran timers ni desconectan BT.
+
+ E. Almacenamiento externo + requestLegacyExternalStorage (ver #2, #6)
+    Combina problema legal (GDPR), tecnico (scoped storage) y de
+    mantenimiento. Es el punto mas urgente del bloque critico.
+
+
+=====================================================================
+ RESUMEN
+=====================================================================
+
+ Total hallazgos: 31
+ Criticos: 6    (2 corregidos: #3, #4)
+ Altos:    9    (1 corregido:  #8)
+ Medios:   11
+ Bajos:    4
+ Extras:   1    (corregido: #31)
+
+ Corregidos hasta ahora:
+   [X] #4  NPE callback BT        -> commit 55a2eeb
+   [X] #8  IndexOutOfBounds bat   -> commit 55a2eeb
+   [X] #3  Cascadas BD sin trans. -> commit decccbe
+   [X] #31 Typo COLUMN_US_SESION_ID -> commit 8512e4f
+
