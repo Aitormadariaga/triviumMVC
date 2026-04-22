@@ -428,7 +428,25 @@ public class TratamientoController {
 
                     while (nBytes >= 4) {
                         int j = 0;
-                        while (recBuffer[j] < 2 || recBuffer[j] > 3) j++;
+                        // Buscar header (valor 2 o 3) sin salirnos del buffer.
+                        // Necesitamos también j+1 válido para leer el siguiente byte.
+                        while (j < recBuffer.length - 1
+                                && (recBuffer[j] < 2 || recBuffer[j] > 3)) {
+                            j++;
+                        }
+
+                        // Si no hay header válido o solo queda el último byte
+                        // sin sucesor, descartamos el buffer y seguimos leyendo.
+                        // Puede ocurrir por ruido BT, respuestas de otros comandos
+                        // o buffer residual tras reconexión.
+                        if (j >= recBuffer.length - 1
+                                || recBuffer[j] < 2 || recBuffer[j] > 3) {
+                            Log.w(TAG, "Header de batería no encontrado, descartando buffer");
+                            java.util.Arrays.fill(recBuffer, (byte) 0);
+                            indiceRec = 0;
+                            nBytes = 0;
+                            break;
+                        }
 
                         indiceRec = 0;
                         Log.d(TAG, "Recibidos Total Bytes: " + nBytes);

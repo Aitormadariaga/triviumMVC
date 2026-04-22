@@ -334,6 +334,31 @@ public class MainActivity extends AppCompatActivity
     }
 
     /**
+     * Construye la etiqueta "Nombre(XX:XX)" defensivamente: tolera btDevice null
+     * (desconexión entre callback y runOnUiThread), getName() null (dispositivo
+     * sin nombre publicado) y SecurityException (permiso BLUETOOTH_CONNECT
+     * revocado en caliente en Android 12+).
+     */
+    private String construirNombreBT(DispositivoState dispositivo) {
+        String nombre = null;
+        BluetoothDevice btDevice = dispositivo.getBtDevice();
+        if (btDevice != null) {
+            try {
+                nombre = btDevice.getName();
+            } catch (SecurityException e) {
+                Log.w(TAG, "Sin permiso BLUETOOTH_CONNECT al leer nombre BT", e);
+            }
+        }
+        if (nombre == null) nombre = "Dispositivo";
+
+        String addr = dispositivo.getAddress();
+        String sufijo = (addr != null && addr.length() >= 5)
+                ? addr.substring(addr.length() - 5)
+                : "?";
+        return nombre + "(" + sufijo + ")";
+    }
+
+    /**
      * Callback cuando el usuario acepta o rechaza el permiso.
      */
     @Override
@@ -390,9 +415,7 @@ public class MainActivity extends AppCompatActivity
                     InicioPulsos.setEnabled(true);
                     UIHelper.resetButtonToDefault(InicioPulsos);
 
-                    String nombre = dispositivo1.getBtDevice().getName();
-                    String addr = dispositivo1.getAddress();
-                    String nomBT = nombre + "(" + addr.substring(addr.length() - 5) + ")";
+                    String nomBT = construirNombreBT(dispositivo1);
                     dispBluetoothNom1.setText(nomBT);
                     dispBluetoothNom1.setVisibility(View.VISIBLE);
                     iconBatt1.setImageResource(R.drawable.ic_battery_unknown);
@@ -431,9 +454,7 @@ public class MainActivity extends AppCompatActivity
                     InicioPulsos2.setEnabled(true);
                     UIHelper.resetButtonToDefault(InicioPulsos2);
 
-                    String nombre = dispositivo2.getBtDevice().getName();
-                    String addr = dispositivo2.getAddress();
-                    String nomBT = nombre + "(" + addr.substring(addr.length() - 5) + ")";
+                    String nomBT = construirNombreBT(dispositivo2);
                     dispBluetoothNom2.setText(nomBT);
                     dispBluetoothNom2.setVisibility(View.VISIBLE);
                     iconBatt2.setImageResource(R.drawable.ic_battery_unknown);
