@@ -22,7 +22,11 @@ import android.widget.Toast;
 import com.example.triviumgor.R;
 import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.controller.UsuarioController;
+import com.example.triviumgor.network.ApiClient;
+import com.example.triviumgor.network.SincronizacionManager;
 import com.google.android.material.textfield.TextInputEditText;
+
+import org.json.JSONObject;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -154,17 +158,110 @@ public class LoginActivity extends AppCompatActivity {
         String username = etUsername.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
-        UsuarioController.ResultadoLogin resultado = usuarioController.login(username, password);
-
-        if (resultado.exitoso) {
-            Toast.makeText(this, resultado.mensaje, Toast.LENGTH_SHORT).show();
-            navigateToMain();
-        } else {
-            tvError.setText(resultado.mensaje);
+        if (TextUtils.isEmpty(username) || TextUtils.isEmpty(password)) {
+            tvError.setText("Introduce usuario y contraseña");
             tvError.setVisibility(View.VISIBLE);
-            etPassword.setText("");
-            etPassword.requestFocus();
+            return;
         }
+
+        btnLogin.setEnabled(false);
+        btnLogin.setText("Conectando...");
+
+        // ── Comprobar internet PRIMERO ──
+        if (!SincronizacionManager.hayInternet(this)) {
+            // Sin internet → login local directamente
+            UsuarioController.ResultadoLogin resultado =
+                    usuarioController.login(username, password);
+
+            btnLogin.setEnabled(true);
+            btnLogin.setText("Iniciar sesión");
+
+            if (resultado.exitoso) {
+                Toast.makeText(this,
+                        "Sin conexión — modo offline",
+                        Toast.LENGTH_SHORT).show();
+                navigateToMain();
+            } else {
+                mostrarError("Usuario o contraseña incorrectos");
+            }
+            return;
+        }
+
+        // ── Con internet → login contra la API ──
+        ApiClient apiClient = new ApiClient(this);
+
+        apiClient.login(username, password, new ApiClient.ApiCallback() {
+
+            @Override
+            public void onSuccess(JSONObject response) {
+                try {
+                    String token = response.getString("token");
+
+                    // Guardar token en SharedPreferences
+                    getSharedPreferences("LoginPrefs", MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("isLoggedIn", true)
+                            .putString("username", username)
+                            .putString("jwt_token", token)
+                            .apply();
+
+                    // También hacer login local para mantener la sesión offline
+                    usuarioController.login(username, password);
+
+                    runOnUiThread(() -> {
+                        btnLogin.setEnabled(true);
+                        btnLogin.setText("Iniciar sesión");
+                        Toast.makeText(LoginActivity.this,
+                                "Bienvenido, " + username,
+                                Toast.LENGTH_SHORT).show();
+                        navigateToMain();
+                    });
+
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        btnLogin.setEnabled(true);
+                        btnLogin.setText("Iniciar sesión");
+                        mostrarError("Error al procesar la respuesta");
+                    });
+                }
+            }
+
+            @Override
+            public void onError(String mensaje) {
+                runOnUiThread(() -> {
+                    btnLogin.setEnabled(true);
+                    btnLogin.setText("Iniciar sesión");
+
+                    // Hay internet pero falló la API
+                    // → las credenciales son incorrectas o el servidor está caído
+                    if (mensaje.equals("Sin conexión al servidor")) {
+                        // Servidor caído → intentar login local
+                        UsuarioController.ResultadoLogin resultado =
+                                usuarioController.login(username, password);
+
+                        if (resultado.exitoso) {
+                            Toast.makeText(LoginActivity.this,
+                                    "Servidor no disponible — modo offline",
+                                    Toast.LENGTH_SHORT).show();
+                            navigateToMain();
+                        } else {
+                            mostrarError("Servidor no disponible y sin sesión local");
+                        }
+                    } else {
+                        // Credenciales incorrectas → mostrar error directamente
+                        // NO intentar login local
+                        mostrarError(mensaje);
+                    }
+                });
+            }
+        });
+    }
+
+    private void mostrarError(String mensaje) {
+        tvError.setText(mensaje);
+        tvError.setVisibility(View.VISIBLE);
+        etPassword.setText("");
+        etPassword.requestFocus();
     }
 
     private void navigateToMain() {
