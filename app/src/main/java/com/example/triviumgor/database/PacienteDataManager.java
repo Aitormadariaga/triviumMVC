@@ -12,6 +12,9 @@ import android.util.Log;
 import com.example.triviumgor.model.Sesion;
 import com.example.triviumgor.model.Paciente;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -866,5 +869,304 @@ public class PacienteDataManager {
         }
     }
 
+    // ========================================================================
+    // Sincronización con la API
+    // ------------------------------------------------------------------------
+    // Estos métodos los consume network/SincronizacionManager. La filosofía es
+    // offline-first: los cambios locales se copian a backup_pendiente (o el ID
+    // se marca en eliminaciones_pendientes) y se suben cuando hay red. Tras la
+    // respuesta del servidor, las filas correspondientes se limpian.
+    // ========================================================================
+
+    /**
+     * Guarda en backup_pendiente un snapshot del paciente recién creado,
+     * editado o marcado para eliminar. El SincronizacionManager lo enviará
+     * al servidor en el próximo push.
+     */
+    public void guardarCambioPendiente(int pacienteId, boolean eliminar,
+                                       JSONObject datosPaciente) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_BP_PACIENTE_ID, pacienteId);
+            values.put(PacienteDBHelper.COLUMN_BP_ELIMINAR, eliminar ? 1 : 0);
+            values.put(PacienteDBHelper.COLUMN_BP_FECHA,
+                    new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",
+                            Locale.getDefault()).format(new Date()));
+
+            if (datosPaciente != null) {
+                values.put(PacienteDBHelper.COLUMN_BP_CIC,
+                        datosPaciente.optString("cic", null));
+                values.put(PacienteDBHelper.COLUMN_BP_DNI,
+                        datosPaciente.optString("dni", null));
+                values.put(PacienteDBHelper.COLUMN_BP_NOMBRE,
+                        datosPaciente.optString("nombre", null));
+                values.put(PacienteDBHelper.COLUMN_BP_APELLIDO1,
+                        datosPaciente.optString("apellido1", null));
+                values.put(PacienteDBHelper.COLUMN_BP_APELLIDO2,
+                        datosPaciente.optString("apellido2", null));
+                values.put(PacienteDBHelper.COLUMN_BP_EDAD,
+                        datosPaciente.optInt("edad", 0));
+                values.put(PacienteDBHelper.COLUMN_BP_GENERO,
+                        datosPaciente.optString("genero", null));
+                values.put(PacienteDBHelper.COLUMN_BP_PATOLOGIA,
+                        datosPaciente.optString("patologia", null));
+                values.put(PacienteDBHelper.COLUMN_BP_MEDICACION,
+                        datosPaciente.optString("medicacion", null));
+                values.put(PacienteDBHelper.COLUMN_BP_INTENSIDAD,
+                        datosPaciente.optInt("intensidad", 0));
+                values.put(PacienteDBHelper.COLUMN_BP_TIEMPO,
+                        datosPaciente.optInt("tiempo", 0));
+                values.put(PacienteDBHelper.COLUMN_BP_INTENSIDAD2,
+                        datosPaciente.optInt("intensidad2", 0));
+                values.put(PacienteDBHelper.COLUMN_BP_TIEMPO2,
+                        datosPaciente.optInt("tiempo2", 0));
+            }
+
+            database.insert(PacienteDBHelper.TABLE_BACKUP_PENDIENTE, null, values);
+            Log.d("PacienteDataManager", "Cambio pendiente guardado para paciente " + pacienteId);
+
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al guardar cambio pendiente: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Devuelve todos los cambios pendientes, ordenados por fecha ascendente
+     * para respetar el orden cronológico al sincronizar.
+     */
+    public JSONArray obtenerCambiosPendientes() {
+        JSONArray cambios = new JSONArray();
+        Cursor cursor = null;
+        try {
+            cursor = database.query(
+                    PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
+                    null, null, null, null, null,
+                    PacienteDBHelper.COLUMN_BP_FECHA + " ASC"
+            );
+
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    JSONObject cambio = new JSONObject();
+                    cambio.put("pacienteId", cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_PACIENTE_ID)));
+                    cambio.put("eliminar",   cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_ELIMINAR)) == 1);
+                    cambio.put("cic",        cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_CIC)));
+                    cambio.put("dni",        cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_DNI)));
+                    cambio.put("nombre",     cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_NOMBRE)));
+                    cambio.put("apellido1",  cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_APELLIDO1)));
+                    cambio.put("apellido2",  cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_APELLIDO2)));
+                    cambio.put("edad",       cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_EDAD)));
+                    cambio.put("genero",     cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_GENERO)));
+                    cambio.put("patologia",  cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_PATOLOGIA)));
+                    cambio.put("medicacion", cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_MEDICACION)));
+                    cambio.put("intensidad", cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_INTENSIDAD)));
+                    cambio.put("tiempo",     cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_TIEMPO)));
+                    cambio.put("intensidad2",cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_INTENSIDAD2)));
+                    cambio.put("tiempo2",    cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_TIEMPO2)));
+                    cambios.put(cambio);
+                } while (cursor.moveToNext());
+            }
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return cambios;
+    }
+
+    /**
+     * Devuelve todas las sesiones en formato JSON, ordenadas por fecha,
+     * para subirlas al servidor.
+     */
+    public JSONArray obtenerTodasLasSesiones() {
+        JSONArray sesiones = new JSONArray();
+        Cursor cursor = null;
+        try {
+            cursor = database.query(
+                    PacienteDBHelper.TABLE_SESIONES,
+                    null, null, null, null, null,
+                    PacienteDBHelper.COLUMN_FECHA + " ASC"
+            );
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    JSONObject sesion = new JSONObject();
+                    sesion.put("pacienteId",  cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_PACIENTE_ID)));
+                    sesion.put("dispositivo", cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_DISPOSITIVO)));
+                    sesion.put("fecha",       cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_FECHA)));
+                    sesion.put("intensidad",  cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_INTENSIDAD_SESION)));
+                    sesion.put("tiempo",      cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_TIEMPO_SESION)));
+                    sesiones.put(sesion);
+                } while (cursor.moveToNext());
+            }
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return sesiones;
+    }
+
+    public boolean haySesionesLocales() {
+        Cursor cursor = null;
+        try {
+            cursor = database.rawQuery(
+                    "SELECT COUNT(*) FROM " + PacienteDBHelper.TABLE_SESIONES, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getInt(0) > 0;
+            }
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return false;
+    }
+
+    /**
+     * Tras sincronizar con éxito un paciente, borramos sus filas en
+     * backup_pendiente (puede haber varias si se editó varias veces).
+     */
+    public void eliminarCambiosPendientesDePaciente(int pacienteId) {
+        try {
+            database.delete(
+                    PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
+                    PacienteDBHelper.COLUMN_BP_PACIENTE_ID + " = ?",
+                    new String[]{String.valueOf(pacienteId)}
+            );
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Descarga masiva: reemplaza todos los pacientes locales por los que envía
+     * el servidor. Los pacientes marcados localmente como pendientes de
+     * eliminar se saltan para no resucitarlos antes de que el admin confirme.
+     */
+    public void guardarPacientesDesdeServidor(JSONArray pacientes) throws Exception {
+        List<Integer> eliminacionesPendientes = obtenerTodasEliminacionesPendientes();
+
+        database.beginTransaction();
+        try {
+            database.delete(PacienteDBHelper.TABLE_PACIENTES, null, null);
+
+            for (int i = 0; i < pacientes.length(); i++) {
+                JSONObject p = pacientes.getJSONObject(i);
+                int id = p.getInt("id");
+
+                if (eliminacionesPendientes.contains(id)) {
+                    Log.d("PacienteDataManager", "Saltando paciente " + id + " — eliminación pendiente");
+                    continue;
+                }
+
+                ContentValues values = new ContentValues();
+                values.put(PacienteDBHelper.COLUMN_ID, id);
+                values.put(PacienteDBHelper.COLUMN_CIC, p.optString("cic"));
+                values.put(PacienteDBHelper.COLUMN_DNI, p.optString("dni"));
+                values.put(PacienteDBHelper.COLUMN_NOMBRE, p.optString("nombre"));
+                values.put(PacienteDBHelper.COLUMN_APELLIDO1, p.optString("apellido1"));
+                values.put(PacienteDBHelper.COLUMN_APELLIDO2, p.optString("apellido2"));
+                values.put(PacienteDBHelper.COLUMN_EDAD, p.optInt("edad"));
+                values.put(PacienteDBHelper.COLUMN_GENERO, p.optString("genero"));
+                values.put(PacienteDBHelper.COLUMN_PATOLOGIA, p.optString("patologia"));
+                values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, p.optString("medicacion"));
+                values.put(PacienteDBHelper.COLUMN_INTENSIDAD, p.optInt("intensidad"));
+                values.put(PacienteDBHelper.COLUMN_TIEMPO, p.optInt("tiempo"));
+                values.put(PacienteDBHelper.COLUMN_INTENSIDAD2, p.optInt("intensidad2"));
+                values.put(PacienteDBHelper.COLUMN_TIEMPO2, p.optInt("tiempo2"));
+                database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
+            }
+            database.setTransactionSuccessful();
+        } finally {
+            database.endTransaction();
+        }
+    }
+
+    /**
+     * Descarga masiva de sesiones desde el servidor (reemplaza las locales).
+     */
+    public void guardarSesionesDesdeServidor(JSONArray sesiones) throws Exception {
+        database.beginTransaction();
+        try {
+            database.delete(PacienteDBHelper.TABLE_SESIONES, null, null);
+
+            for (int i = 0; i < sesiones.length(); i++) {
+                JSONObject s = sesiones.getJSONObject(i);
+                ContentValues values = new ContentValues();
+                values.put(PacienteDBHelper.COLUMN_SESION_ID, s.getInt("id"));
+                values.put(PacienteDBHelper.COLUMN_PACIENTE_ID, s.getInt("pacienteId"));
+                values.put(PacienteDBHelper.COLUMN_DISPOSITIVO, s.optString("dispositivo"));
+                values.put(PacienteDBHelper.COLUMN_FECHA, s.optString("fecha"));
+                values.put(PacienteDBHelper.COLUMN_INTENSIDAD_SESION, s.optInt("intensidad"));
+                values.put(PacienteDBHelper.COLUMN_TIEMPO_SESION, s.optInt("tiempo"));
+                database.insert(PacienteDBHelper.TABLE_SESIONES, null, values);
+            }
+            database.setTransactionSuccessful();
+        } finally {
+            database.endTransaction();
+        }
+    }
+
+    public List<Integer> obtenerTodasEliminacionesPendientes() {
+        List<Integer> ids = new ArrayList<>();
+        Cursor cursor = null;
+        try {
+            cursor = database.query(
+                    PacienteDBHelper.TABLE_ELIMINACIONES_PENDIENTES,
+                    null, null, null, null, null, null
+            );
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    ids.add(cursor.getInt(cursor.getColumnIndexOrThrow(
+                            PacienteDBHelper.COLUMN_EP_PACIENTE_ID)));
+                } while (cursor.moveToNext());
+            }
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return ids;
+    }
+
+    public void eliminarEliminacionPendiente(int pacienteId) {
+        try {
+            database.delete(
+                    PacienteDBHelper.TABLE_ELIMINACIONES_PENDIENTES,
+                    PacienteDBHelper.COLUMN_EP_PACIENTE_ID + " = ?",
+                    new String[]{String.valueOf(pacienteId)}
+            );
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error: " + e.getMessage());
+        }
+    }
+
+    public void guardarEliminacionPendiente(int pacienteId) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_EP_PACIENTE_ID, pacienteId);
+            database.insertOrThrow(
+                    PacienteDBHelper.TABLE_ELIMINACIONES_PENDIENTES, null, values);
+        } catch (Exception e) {
+            // Ignorar si ya existe (PK duplicada al volver a pulsar eliminar).
+        }
+    }
+
+    public boolean estaEnEliminacionesPendientes(int pacienteId) {
+        Cursor cursor = null;
+        try {
+            cursor = database.query(
+                    PacienteDBHelper.TABLE_ELIMINACIONES_PENDIENTES,
+                    null,
+                    PacienteDBHelper.COLUMN_EP_PACIENTE_ID + " = ?",
+                    new String[]{String.valueOf(pacienteId)},
+                    null, null, null
+            );
+            return cursor != null && cursor.moveToFirst();
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+    }
 
 }

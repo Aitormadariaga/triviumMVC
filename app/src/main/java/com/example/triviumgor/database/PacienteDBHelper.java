@@ -14,10 +14,11 @@ import java.security.NoSuchAlgorithmException;
 public class PacienteDBHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "trivium.db";
-    // ⚠️ IMPORTANTE: Se incrementó la versión de 2 a 3 para que onUpgrade()
-    //    cree la nueva tabla usuario_paciente en dispositivos ya instalados.
-    //si volvemos a modificar el esquema subirías a 4 y añadirías un bloque if (oldVersion < 3) en onUpgrade()
-    private static final int DATABASE_VERSION = 5;
+    // ⚠️ IMPORTANTE: cada cambio de esquema sube DATABASE_VERSION + añade un
+    //    bloque if (oldVersion < N) en onUpgrade() que haga la migración.
+    //    v5 → v6: tablas backup_pendiente y eliminaciones_pendientes para
+    //    sincronización con la API (cambios locales que aún no han subido).
+    private static final int DATABASE_VERSION = 6;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -72,6 +73,33 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String TABLE_USUARIO_SESION = "usuario_sesion";
     public static final String COLUMN_US_USUARIO_ID = "id_usuario";
     public static final String COLUMN_US_SESION_ID = "id_sesion";
+
+    // Tabla BACKUP_PENDIENTE: guarda una copia de los cambios de pacientes
+    // que todavía no se han sincronizado con el servidor. Al sincronizar con
+    // éxito se borra la fila; si hay conflicto, se conserva hasta resolverlo.
+    public static final String TABLE_BACKUP_PENDIENTE = "backup_pendiente";
+    public static final String COLUMN_BP_ID = "_id";
+    public static final String COLUMN_BP_PACIENTE_ID = "paciente_id";
+    public static final String COLUMN_BP_ELIMINAR = "eliminar";
+    public static final String COLUMN_BP_CIC = "cic";
+    public static final String COLUMN_BP_DNI = "dni";
+    public static final String COLUMN_BP_NOMBRE = "nombre";
+    public static final String COLUMN_BP_APELLIDO1 = "apellido1";
+    public static final String COLUMN_BP_APELLIDO2 = "apellido2";
+    public static final String COLUMN_BP_EDAD = "edad";
+    public static final String COLUMN_BP_GENERO = "genero";
+    public static final String COLUMN_BP_PATOLOGIA = "patologia";
+    public static final String COLUMN_BP_MEDICACION = "medicacion";
+    public static final String COLUMN_BP_INTENSIDAD = "intensidad";
+    public static final String COLUMN_BP_TIEMPO = "tiempo";
+    public static final String COLUMN_BP_INTENSIDAD2 = "intensidad2";
+    public static final String COLUMN_BP_TIEMPO2 = "tiempo2";
+    public static final String COLUMN_BP_FECHA = "fecha";
+
+    // Tabla ELIMINACIONES_PENDIENTES: IDs de pacientes marcados para borrar
+    // en la tablet pero aún no confirmados por el admin en el servidor.
+    public static final String TABLE_ELIMINACIONES_PENDIENTES = "eliminaciones_pendientes";
+    public static final String COLUMN_EP_PACIENTE_ID = "paciente_id";
 
     // Sentencia SQL para crear la tabla
     private static final String SQL_CREATE_PACIENTES =
@@ -138,6 +166,33 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     "FOREIGN KEY (" + COLUMN_US_SESION_ID + ") REFERENCES " +
                     TABLE_SESIONES + "(" + COLUMN_SESION_ID + "))";
 
+    // SQL para crear tabla BACKUP_PENDIENTE (cambios locales de pacientes
+    // pendientes de subir al servidor).
+    private static final String SQL_CREATE_BACKUP_PENDIENTE =
+            "CREATE TABLE " + TABLE_BACKUP_PENDIENTE + " (" +
+                    COLUMN_BP_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    COLUMN_BP_PACIENTE_ID + " INTEGER NOT NULL, " +
+                    COLUMN_BP_ELIMINAR + " INTEGER DEFAULT 0, " +
+                    COLUMN_BP_CIC + " TEXT, " +
+                    COLUMN_BP_DNI + " TEXT, " +
+                    COLUMN_BP_NOMBRE + " TEXT, " +
+                    COLUMN_BP_APELLIDO1 + " TEXT, " +
+                    COLUMN_BP_APELLIDO2 + " TEXT, " +
+                    COLUMN_BP_EDAD + " INTEGER, " +
+                    COLUMN_BP_GENERO + " TEXT, " +
+                    COLUMN_BP_PATOLOGIA + " TEXT, " +
+                    COLUMN_BP_MEDICACION + " TEXT, " +
+                    COLUMN_BP_INTENSIDAD + " INTEGER, " +
+                    COLUMN_BP_TIEMPO + " INTEGER, " +
+                    COLUMN_BP_INTENSIDAD2 + " INTEGER, " +
+                    COLUMN_BP_TIEMPO2 + " INTEGER, " +
+                    COLUMN_BP_FECHA + " TEXT NOT NULL)";
+
+    // SQL para crear tabla ELIMINACIONES_PENDIENTES.
+    private static final String SQL_CREATE_ELIMINACIONES_PENDIENTES =
+            "CREATE TABLE " + TABLE_ELIMINACIONES_PENDIENTES + " (" +
+                    COLUMN_EP_PACIENTE_ID + " INTEGER PRIMARY KEY)";
+
     // Constructor modificado
     public PacienteDBHelper(Context context) {
         super(context, getDatabasePath(context), null, DATABASE_VERSION);
@@ -192,6 +247,8 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_USUARIOS);
         db.execSQL(SQL_CREATE_USUARIO_PACIENTE);
         db.execSQL(SQL_CREATE_USUARIO_SESION);
+        db.execSQL(SQL_CREATE_BACKUP_PENDIENTE);
+        db.execSQL(SQL_CREATE_ELIMINACIONES_PENDIENTES);
 
         // Insertar usuario administrador por defecto
         insertarUsuarioAdmin(db);
@@ -258,6 +315,21 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             Log.e("PacienteDBHelper", "Error al recrear usuario_sesion: " + e.getMessage());
         }
     }
+    if (oldVersion < 6) {
+        // Migración v5 → v6: crear tablas de sincronización.
+        try {
+            db.execSQL(SQL_CREATE_BACKUP_PENDIENTE);
+            Log.d("PacienteDBHelper", "Tabla backup_pendiente creada");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error al crear backup_pendiente: " + e.getMessage());
+        }
+        try {
+            db.execSQL(SQL_CREATE_ELIMINACIONES_PENDIENTES);
+            Log.d("PacienteDBHelper", "Tabla eliminaciones_pendientes creada");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error al crear eliminaciones_pendientes: " + e.getMessage());
+        }
+    }
 }
 
     @Override
@@ -268,6 +340,8 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         // ⚠️ Esto implica pérdida de datos existentes.
         Log.w("PacienteDBHelper", "Downgrade de v" + oldVersion + " a v" + newVersion
                 + ": se recreará el esquema (se pierden los datos).");
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_ELIMINACIONES_PENDIENTES);
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_BACKUP_PENDIENTE);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_USUARIO_SESION);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_USUARIO_PACIENTE);
         db.execSQL("DROP TABLE IF EXISTS " + TABLE_SESIONES);
