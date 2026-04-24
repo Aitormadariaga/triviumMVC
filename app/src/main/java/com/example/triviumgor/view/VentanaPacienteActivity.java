@@ -107,8 +107,10 @@ public class VentanaPacienteActivity extends AppCompatActivity {
             return;
         }
 
-        // Inicializar controller
-        pacienteController = new PacienteController(dataManager);
+        // Inicializar controller: se usa el constructor con Context para que el
+        // PacienteController active su SincronizacionManager interno y registre
+        // cada edit/eliminar en backup_pendiente (sin esto los hooks son no-op).
+        pacienteController = new PacienteController(this, dataManager);
         usuarioController = new UsuarioController(this, dataManager);
 
         // Obtener el ID del usuario logueado y si es admin, sera -1 (para leer todos los pacientes)
