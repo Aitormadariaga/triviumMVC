@@ -42,7 +42,12 @@ import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.DispositivoState;
 import com.example.triviumgor.model.Paciente;
 import com.example.triviumgor.model.Usuario;
+import com.example.triviumgor.network.SincronizacionListener;
+import com.example.triviumgor.network.SincronizacionManager;
 import com.example.triviumgor.util.UIHelper;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.UUID;
 
@@ -185,6 +190,12 @@ public class MainActivity extends AppCompatActivity
     };
 
     // ========================
+    // API Y SINCRONIZACION
+    // ========================
+    private SincronizacionManager sincronizacionManager;
+    private Button btnSincronizar;
+
+    // ========================
     // LIFECYCLE
     // ========================
 
@@ -209,9 +220,11 @@ public class MainActivity extends AppCompatActivity
         bluetoothController.setDispositivoRefs(dispositivo1, dispositivo2);
 
         tratamientoController = new TratamientoController(this);
-        pacienteController = new PacienteController(dataManager);
+        pacienteController = new PacienteController(this, dataManager);
         sesionController = new SesionController(dataManager);
         usuarioController = new UsuarioController(this, dataManager);
+
+        sincronizacionManager = new SincronizacionManager(this, dataManager);
 
         // Verificar sesión activa
         if (!usuarioController.haySesionActiva()) {
@@ -290,6 +303,10 @@ public class MainActivity extends AppCompatActivity
         btnVerLista = findViewById(R.id.btnVerLista);
         nombreDispositivoPac1 = findViewById(R.id.nombreDispositivoPac1);
         nombreDispositivoPac2 = findViewById(R.id.nombreDispositivoPac2);
+
+        btnSincronizar = findViewById(R.id.btnSincronizar);
+        // Sincronizar solo tiene sentido online; lo habilitamos si hay red al arrancar.
+        btnSincronizar.setEnabled(SincronizacionManager.hayInternet(this));
 
         // Botones de amplitud (dispositivo 1)
         AmpliInc1 = findViewById(R.id.buttonAmpliInc);
@@ -571,6 +588,55 @@ public class MainActivity extends AppCompatActivity
             intent.putExtra("verSoloLista", true);
             intent.putExtra("DISPOSITIVO_ELEC", opcionDispositivoInt);
             startActivity(intent);
+        });
+
+        // SINCRONIZAR
+        btnSincronizar.setOnClickListener(v -> {
+            btnSincronizar.setEnabled(false);
+            btnSincronizar.setText("Sincronizando...");
+
+            sincronizacionManager.sincronizar(new SincronizacionListener() {
+
+                @Override
+                public void onCompletado(int sincronizados, int conflictos) {
+                    runOnUiThread(() -> {
+                        btnSincronizar.setEnabled(true);
+                        btnSincronizar.setText("Sincronizar");
+                        Toast.makeText(MainActivity.this,
+                                "Sincronización completada",
+                                Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+                @Override
+                public void onConflictos(JSONArray conflictos) {
+                    runOnUiThread(() -> {
+                        btnSincronizar.setEnabled(true);
+                        btnSincronizar.setText("Sincronizar");
+                        mostrarDialogoConflicto(conflictos, 0);
+                    });
+                }
+
+                @Override
+                public void onEliminacionesRechazadas(JSONArray rechazados) {
+                    runOnUiThread(() -> {
+                        btnSincronizar.setEnabled(true);
+                        btnSincronizar.setText("Sincronizar");
+                        mostrarDialogoEliminacionesRechazadas(rechazados);
+                    });
+                }
+
+                @Override
+                public void onError(String mensaje) {
+                    runOnUiThread(() -> {
+                        btnSincronizar.setEnabled(true);
+                        btnSincronizar.setText("Sincronizar");
+                        Toast.makeText(MainActivity.this,
+                                "Error: " + mensaje,
+                                Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
         });
     }
 
@@ -865,6 +931,150 @@ public class MainActivity extends AppCompatActivity
     private void mostrarDialogoGuardar2Dispositivos() {
         // TODO: Implementar diálogo para guardar config de 2 dispositivos
         Toast.makeText(this, "Guardar config 2 dispositivos", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Muestra secuencialmente un diálogo por cada conflicto devuelto por el
+     * servidor. El usuario elige entre conservar su versión o sobrescribir
+     * con la del servidor. Avanza al siguiente conflicto cuando la decisión
+     * llega a onCompletado.
+     */
+    private void mostrarDialogoConflicto(JSONArray conflictos, int indice) {
+        if (indice >= conflictos.length()) {
+            Toast.makeText(this,
+                    "Todos los conflictos resueltos",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            JSONObject conflicto       = conflictos.getJSONObject(indice);
+            int pacienteId             = conflicto.getInt("pacienteId");
+            JSONObject versionTablet   = conflicto.getJSONObject("versionTablet");
+            JSONObject versionServidor = conflicto.getJSONObject("versionServidor");
+
+            String nombreTablet   = versionTablet.optString("nombre", "?")
+                    + " " + versionTablet.optString("apellido1", "");
+            String medicoServidor = versionServidor.optString("usuario", "otro médico");
+            String fechaServidor  = versionServidor.optString("fecha", "");
+
+            new AlertDialog.Builder(this)
+                    .setTitle("Conflicto detectado")
+                    .setMessage(
+                            "El paciente " + nombreTablet.trim() +
+                                    " también fue modificado por " + medicoServidor +
+                                    " el " + fechaServidor + ".\n\n¿Qué versión quieres mantener?"
+                    )
+                    .setPositiveButton("Mis cambios", (dialog, which) -> {
+                        sincronizacionManager.resolverConflicto(
+                                pacienteId,
+                                "mantener",
+                                versionTablet,
+                                new SincronizacionListener() {
+                                    @Override
+                                    public void onCompletado(int s, int c) {
+                                        mostrarDialogoConflicto(conflictos, indice + 1);
+                                    }
+                                    @Override
+                                    public void onConflictos(JSONArray c) {}
+                                    @Override
+                                    public void onEliminacionesRechazadas(JSONArray r) {}
+                                    @Override
+                                    public void onError(String msg) {
+                                        runOnUiThread(() ->
+                                                Toast.makeText(MainActivity.this,
+                                                        "Error: " + msg,
+                                                        Toast.LENGTH_SHORT).show());
+                                    }
+                                }
+                        );
+                    })
+                    .setNegativeButton("Cambios de " + medicoServidor, (dialog, which) -> {
+                        sincronizacionManager.resolverConflicto(
+                                pacienteId,
+                                "sobreescribir",
+                                null,
+                                new SincronizacionListener() {
+                                    @Override
+                                    public void onCompletado(int s, int c) {
+                                        mostrarDialogoConflicto(conflictos, indice + 1);
+                                    }
+                                    @Override
+                                    public void onConflictos(JSONArray c) {}
+                                    @Override
+                                    public void onEliminacionesRechazadas(JSONArray r) {}
+                                    @Override
+                                    public void onError(String msg) {
+                                        runOnUiThread(() ->
+                                                Toast.makeText(MainActivity.this,
+                                                        "Error: " + msg,
+                                                        Toast.LENGTH_SHORT).show());
+                                    }
+                                }
+                        );
+                    })
+                    .setCancelable(false)
+                    .show();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error mostrando diálogo conflicto: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Informa al usuario de pacientes cuya eliminación no fue confirmada por
+     * el admin en el servidor: se han restaurado. Al aceptar se vuelve a
+     * descargar la lista de pacientes desde el servidor.
+     */
+    private void mostrarDialogoEliminacionesRechazadas(JSONArray rechazados) {
+        try {
+            StringBuilder lista = new StringBuilder();
+            for (int i = 0; i < rechazados.length(); i++) {
+                JSONObject p = rechazados.getJSONObject(i);
+                lista.append("• ")
+                        .append(p.optString("nombre", ""))
+                        .append(" ")
+                        .append(p.optString("apellido1", ""))
+                        .append(" (")
+                        .append(p.optString("dni", ""))
+                        .append(")\n");
+            }
+
+            new AlertDialog.Builder(this)
+                    .setTitle("Eliminaciones no confirmadas")
+                    .setMessage(
+                            "El administrador no confirmó la eliminación de los " +
+                                    "siguientes pacientes, por lo que han sido restaurados:\n\n"
+                                    + lista.toString()
+                    )
+                    .setPositiveButton("Entendido", (dialog, which) -> {
+                        sincronizacionManager.descargarTodo(
+                                new SincronizacionManager.DescargaListener() {
+                                    @Override
+                                    public void onCompletado(int pacientes, int sesiones) {
+                                        runOnUiThread(() ->
+                                                Toast.makeText(MainActivity.this,
+                                                        "Datos actualizados",
+                                                        Toast.LENGTH_SHORT).show()
+                                        );
+                                    }
+                                    @Override
+                                    public void onError(String msg) {
+                                        runOnUiThread(() ->
+                                                Toast.makeText(MainActivity.this,
+                                                        "Error al actualizar datos",
+                                                        Toast.LENGTH_SHORT).show()
+                                        );
+                                    }
+                                }
+                        );
+                    })
+                    .setCancelable(false)
+                    .show();
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error mostrando diálogo eliminaciones rechazadas: " + e.getMessage());
+        }
     }
 
     // ========================

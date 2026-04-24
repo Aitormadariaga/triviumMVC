@@ -1,10 +1,14 @@
 package com.example.triviumgor.controller;
 
+import android.content.Context;
 import android.database.Cursor;
 
 import com.example.triviumgor.database.PacienteDBHelper;
 import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.Paciente;
+import com.example.triviumgor.network.SincronizacionManager;
+
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,9 +46,20 @@ public class PacienteController {
     }
 
     private final PacienteDataManager dataManager;
+    // Opcional: si se construye con Context se activa la sincronización con la API.
+    // Construido con el constructor viejo (sin Context) queda en null y los métodos
+    // de sincronización se convierten en no-op, útil para tests o reusos en los que
+    // no haya capa de red.
+    private final SincronizacionManager sincronizacionManager;
+
+    public PacienteController(Context context, PacienteDataManager dataManager) {
+        this.dataManager = dataManager;
+        this.sincronizacionManager = new SincronizacionManager(context, dataManager);
+    }
 
     public PacienteController(PacienteDataManager dataManager) {
         this.dataManager = dataManager;
+        this.sincronizacionManager = null;
     }
 
     // ========================
@@ -274,11 +289,35 @@ public class PacienteController {
         int resultado = dataManager.actualizarPaciente(id, dni, nombre, apellido1, apellido2, edad, genero,
                 patologia, medicacion, intensidad, tiempo, cic);
 
-        if (resultado != -1) {
-            return Resultado.ok("Paciente actualizado correctamente", id);
-        } else {
+        if (resultado == -1) {
             return Resultado.error("Error al actualizar el paciente");
         }
+
+        // Registrar el cambio en backup_pendiente para que el próximo push lo suba.
+        if (sincronizacionManager != null) {
+            try {
+                JSONObject datosPaciente = new JSONObject();
+                datosPaciente.put("cic",         cic);
+                datosPaciente.put("dni",         dni);
+                datosPaciente.put("nombre",      nombre);
+                datosPaciente.put("apellido1",   apellido1);
+                datosPaciente.put("apellido2",   apellido2 != null ? apellido2 : "");
+                datosPaciente.put("edad",        edad);
+                datosPaciente.put("genero",      genero);
+                datosPaciente.put("patologia",   patologia);
+                datosPaciente.put("medicacion",  medicacion);
+                datosPaciente.put("intensidad",  intensidad);
+                datosPaciente.put("tiempo",      tiempo);
+                datosPaciente.put("intensidad2", 0);
+                datosPaciente.put("tiempo2",     0);
+
+                sincronizacionManager.guardarCambioPendiente(id, false, datosPaciente);
+            } catch (Exception e) {
+                // No bloqueamos si falla el guardado del backup: la escritura local ya es firme.
+            }
+        }
+
+        return Resultado.ok("Paciente actualizado correctamente", id);
     }
 
     /**
@@ -321,17 +360,70 @@ public class PacienteController {
         int resultado = dataManager.actualizarPaciente2disp(id, dni, nombre, apellido1, apellido2, edad, genero,
                 patologia, medicacion, intensidad, tiempo, intensidad2, tiempo2, cic);
 
-        if (resultado != -1) {
-            return Resultado.ok("Paciente actualizado correctamente", id);
-        } else {
+        if (resultado == -1) {
             return Resultado.error("Error al actualizar el paciente");
         }
+
+        if (sincronizacionManager != null) {
+            try {
+                JSONObject datosPaciente = new JSONObject();
+                datosPaciente.put("cic",         cic);
+                datosPaciente.put("dni",         dni);
+                datosPaciente.put("nombre",      nombre);
+                datosPaciente.put("apellido1",   apellido1);
+                datosPaciente.put("apellido2",   apellido2 != null ? apellido2 : "");
+                datosPaciente.put("edad",        edad);
+                datosPaciente.put("genero",      genero);
+                datosPaciente.put("patologia",   patologia);
+                datosPaciente.put("medicacion",  medicacion);
+                datosPaciente.put("intensidad",  intensidad);
+                datosPaciente.put("tiempo",      tiempo);
+                datosPaciente.put("intensidad2", intensidad2);
+                datosPaciente.put("tiempo2",     tiempo2);
+
+                sincronizacionManager.guardarCambioPendiente(id, false, datosPaciente);
+            } catch (Exception e) {
+                // No bloqueamos si falla el guardado del backup.
+            }
+        }
+
+        return Resultado.ok("Paciente actualizado correctamente", id);
     }
 
     /**
      * Elimina un paciente y reinicia el autoincrement.
      */
     public Resultado eliminarPaciente(int id) {
+        // Antes de borrar: guardar snapshot en backup_pendiente (eliminar=true)
+        // y marcar el ID en eliminaciones_pendientes para que no reaparezca en la
+        // próxima sincronización hasta que el admin confirme.
+        if (sincronizacionManager != null) {
+            try {
+                Paciente p = obtenerPacientePorId(id, 3);
+                if (p != null) {
+                    JSONObject datosPaciente = new JSONObject();
+                    datosPaciente.put("cic",         p.getCIC());
+                    datosPaciente.put("dni",         p.getDNI());
+                    datosPaciente.put("nombre",      p.getNombre());
+                    datosPaciente.put("apellido1",   p.getAp1());
+                    datosPaciente.put("apellido2",   p.getAp2() != null ? p.getAp2() : "");
+                    datosPaciente.put("edad",        p.getEdad());
+                    datosPaciente.put("genero",      p.getGenero() != null ? p.getGenero().name() : "");
+                    datosPaciente.put("patologia",   p.getPatologia());
+                    datosPaciente.put("medicacion",  p.getMedicacion());
+                    datosPaciente.put("intensidad",  p.getIntensidad());
+                    datosPaciente.put("tiempo",      p.getTiempoM());
+                    datosPaciente.put("intensidad2", p.getIntensidad2());
+                    datosPaciente.put("tiempo2",     p.getTiempoM2());
+
+                    sincronizacionManager.guardarCambioPendiente(id, true, datosPaciente);
+                }
+            } catch (Exception e) {
+                // No bloqueamos si falla el snapshot.
+            }
+            dataManager.guardarEliminacionPendiente(id);
+        }
+
         boolean eliminado = dataManager.eliminarPaciente(id);
         if (!eliminado) {
             return Resultado.error("Error al borrar el paciente");
