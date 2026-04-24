@@ -431,6 +431,29 @@ public class TratamientoController {
             while (running && dispositivo.isBattMon()) {
                 try {
                     int bytes = myInputStream.read(buffer);
+                    if (bytes < 0) {
+                        // EOF: el socket BT se ha cerrado, salimos del thread.
+                        break;
+                    }
+
+                    // Proteccion contra overflow de recBuffer. Si el stack BT
+                    // fragmenta la respuesta en varias lecturas pequeñas que no
+                    // disparan el procesamiento del while interno (nBytes < 4),
+                    // indiceRec sigue creciendo sin resetearse y la siguiente
+                    // lectura grande se sale del buffer (crash observado al
+                    // operar el dispositivo bajo carga).
+                    // En ese caso los bytes estan desalineados, asi que
+                    // descartamos recBuffer entero y arrancamos limpios.
+                    if (indiceRec + bytes > recBuffer.length) {
+                        Log.w(TAG, "recBuffer desalineado (indiceRec="
+                                + indiceRec + ", +" + bytes
+                                + " bytes), descartando y esperando nuevo paquete");
+                        java.util.Arrays.fill(recBuffer, (byte) 0);
+                        indiceRec = 0;
+                        nBytes = 0;
+                        continue;
+                    }
+
                     for (int i = 0; i < bytes; i++) {
                         recBuffer[indiceRec] = buffer[i];
                         indiceRec++;
