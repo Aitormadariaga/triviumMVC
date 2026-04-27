@@ -1093,6 +1093,28 @@ public class PacienteDataManager {
     }
 
     /**
+     * Refresca el timestamp del servidor para un paciente. Lo llama el
+     * SincronizacionManager tras un push exitoso, con la fecha que el
+     * servidor devuelve en sincronizados[]. Asi la siguiente edicion
+     * offline arrancara con el snapshot actualizado.
+     */
+    public void actualizarFechaActualizacion(int pacienteId, String fechaActualizacion) {
+        if (fechaActualizacion == null) return;
+        try {
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_FECHA_ACTUALIZACION, fechaActualizacion);
+            database.update(
+                    PacienteDBHelper.TABLE_PACIENTES,
+                    values,
+                    PacienteDBHelper.COLUMN_ID + " = ?",
+                    new String[]{String.valueOf(pacienteId)}
+            );
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al actualizar fecha_actualizacion: " + e.getMessage());
+        }
+    }
+
+    /**
      * Tras sincronizar con éxito un paciente, borramos sus filas en
      * backup_pendiente (puede haber varias si se editó varias veces).
      */

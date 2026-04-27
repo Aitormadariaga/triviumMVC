@@ -85,10 +85,38 @@ public class SincronizacionManager {
                         JSONArray conflictos    = response.optJSONArray("conflictos");
 
                         // Eliminar de SQLite los que se sincronizaron sin conflicto
+                        // y refrescar el fecha_actualizacion local con el que
+                        // el servidor reporta. Acepta dos formatos:
+                        //   - Nuevo (Fase 4): JSONObject {pacienteId, fechaActualizacion}
+                        //   - Viejo: int (solo el id, sin timestamp)
+                        // El servidor de produccion ya esta en formato nuevo
+                        // (commit 3a7b855 de WebTrivium-BBDDCloud); el branch
+                        // viejo queda como red de seguridad: solo loguea
+                        // warning, no fuerza descarga completa.
                         if (sincronizados != null) {
                             for (int i = 0; i < sincronizados.length(); i++) {
-                                eliminarCambiosPendientesDePaciente(
-                                        sincronizados.getInt(i));
+                                Object item = sincronizados.get(i);
+                                int pacienteId;
+                                String nuevaFecha = null;
+                                if (item instanceof JSONObject) {
+                                    JSONObject obj = (JSONObject) item;
+                                    pacienteId = obj.getInt("pacienteId");
+                                    nuevaFecha = obj.optString("fechaActualizacion", null);
+                                } else if (item instanceof Number) {
+                                    pacienteId = ((Number) item).intValue();
+                                    Log.w(TAG, "sincronizados[] en formato viejo (solo id) " +
+                                            "para paciente " + pacienteId +
+                                            "; fecha_actualizacion local quedara desactualizada " +
+                                            "hasta la proxima descarga");
+                                } else {
+                                    Log.w(TAG, "Elemento de sincronizados[] con tipo inesperado: " +
+                                            (item == null ? "null" : item.getClass().getName()));
+                                    continue;
+                                }
+                                eliminarCambiosPendientesDePaciente(pacienteId);
+                                if (nuevaFecha != null) {
+                                    dataManager.actualizarFechaActualizacion(pacienteId, nuevaFecha);
+                                }
                             }
                         }
 
