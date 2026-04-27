@@ -1027,6 +1027,12 @@ public class PacienteDataManager {
                     cambio.put("tiempo",     cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_TIEMPO)));
                     cambio.put("intensidad2",cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_INTENSIDAD2)));
                     cambio.put("tiempo2",    cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_TIEMPO2)));
+                    // Solo se incluye si hay valor: si es NULL, el servidor
+                    // no puede comparar y aplica last-write-wins.
+                    int idxFA = cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL);
+                    if (!cursor.isNull(idxFA)) {
+                        cambio.put("fechaActualizacionLocal", cursor.getString(idxFA));
+                    }
                     cambios.put(cambio);
                 } while (cursor.moveToNext());
             }
