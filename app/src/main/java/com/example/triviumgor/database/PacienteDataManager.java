@@ -1073,6 +1073,11 @@ public class PacienteDataManager {
                 values.put(PacienteDBHelper.COLUMN_TIEMPO, p.optInt("tiempo"));
                 values.put(PacienteDBHelper.COLUMN_INTENSIDAD2, p.optInt("intensidad2"));
                 values.put(PacienteDBHelper.COLUMN_TIEMPO2, p.optInt("tiempo2"));
+                // Timestamp del servidor: NULL si el paciente todavía no lo tiene
+                // (ej. instalación de servidor anterior a Fase 4). Sin valor =>
+                // last-write-wins en el próximo sync.
+                values.put(PacienteDBHelper.COLUMN_FECHA_ACTUALIZACION,
+                        p.optString("fechaActualizacion", null));
                 database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
             }
             database.setTransactionSuccessful();
