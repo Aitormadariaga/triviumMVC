@@ -18,6 +18,11 @@ public class Paciente {
     private int tiempoM;
     private int intensidad2;
     private int tiempoM2;
+    // Timestamp del servidor (yyyy-MM-dd HH:mm:ss) que la app conoce para
+    // este paciente. Lo rellena la descarga desde /api/pacientes y se usa
+    // como fotografía en backup_pendiente para detectar conflictos al
+    // sincronizar. Null si el paciente nunca pasó por el servidor.
+    private String fechaActualizacion;
 
     // Constructor sin ID (para inserciones)
     public Paciente(String CIC, String DNI, String nombre, String ap1, String ap2, int edad, Genero genero,
@@ -101,6 +106,9 @@ public class Paciente {
 
     public int getTiempoM2() { return tiempoM2; }
     public void setTiempoM2(int tiempoM2) { this.tiempoM2 = tiempoM2; }
+
+    public String getFechaActualizacion() { return fechaActualizacion; }
+    public void setFechaActualizacion(String fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
 
     public int getEdad() {
         return edad;
