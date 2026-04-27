@@ -922,12 +922,77 @@ public class PacienteDataManager {
                         datosPaciente.optInt("tiempo2", 0));
             }
 
+            // Fotografía del fecha_actualizacion para detección de conflictos:
+            // si ya hay otro backup_pendiente para el mismo paciente con un
+            // valor preservado, lo reutilizamos para mantener el timestamp
+            // ORIGINAL (el del primer toque offline). Si no, lo leemos de la
+            // tabla pacientes. Puede ser null para pacientes sin sincronizar
+            // o legacy → el servidor cae a last-write-wins.
+            String fechaActualizacionLocal = resolverFechaActualizacionLocal(pacienteId);
+            if (fechaActualizacionLocal != null) {
+                values.put(PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL,
+                        fechaActualizacionLocal);
+            }
+
             database.insert(PacienteDBHelper.TABLE_BACKUP_PENDIENTE, null, values);
             Log.d("PacienteDataManager", "Cambio pendiente guardado para paciente " + pacienteId);
 
         } catch (Exception e) {
             Log.e("PacienteDataManager", "Error al guardar cambio pendiente: " + e.getMessage());
         }
+    }
+
+    /**
+     * Devuelve el fecha_actualizacion_local que se debe asociar a un nuevo
+     * backup_pendiente del paciente indicado. Preserva el valor del primer
+     * toque offline si ya hay backups pendientes anteriores; en caso
+     * contrario lee el último timestamp conocido del servidor desde la
+     * tabla pacientes. Puede devolver null (paciente sin sincronizar nunca).
+     */
+    private String resolverFechaActualizacionLocal(int pacienteId) {
+        Cursor cursor = null;
+        try {
+            cursor = database.query(
+                    PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
+                    new String[]{PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL},
+                    PacienteDBHelper.COLUMN_BP_PACIENTE_ID + " = ? AND " +
+                            PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL + " IS NOT NULL",
+                    new String[]{String.valueOf(pacienteId)},
+                    null, null,
+                    PacienteDBHelper.COLUMN_BP_FECHA + " ASC",
+                    "1"
+            );
+            if (cursor != null && cursor.moveToFirst()) {
+                String preservado = cursor.getString(0);
+                if (preservado != null) {
+                    return preservado;
+                }
+            }
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al buscar fecha_actualizacion_local previa: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+
+        cursor = null;
+        try {
+            cursor = database.query(
+                    PacienteDBHelper.TABLE_PACIENTES,
+                    new String[]{PacienteDBHelper.COLUMN_FECHA_ACTUALIZACION},
+                    PacienteDBHelper.COLUMN_ID + " = ?",
+                    new String[]{String.valueOf(pacienteId)},
+                    null, null, null
+            );
+            if (cursor != null && cursor.moveToFirst()) {
+                return cursor.getString(0); // puede ser null
+            }
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al leer fecha_actualizacion del paciente: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+
+        return null;
     }
 
     /**
