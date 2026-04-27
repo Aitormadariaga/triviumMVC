@@ -18,7 +18,10 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     //    bloque if (oldVersion < N) en onUpgrade() que haga la migración.
     //    v5 → v6: tablas backup_pendiente y eliminaciones_pendientes para
     //    sincronización con la API (cambios locales que aún no han subido).
-    private static final int DATABASE_VERSION = 6;
+    //    v6 → v7: columnas fecha_actualizacion (en pacientes) y
+    //    fecha_actualizacion_local (en backup_pendiente) para detección de
+    //    conflictos por timestamp en /api/sincronizar (Fase 4 de la web).
+    private static final int DATABASE_VERSION = 7;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -38,6 +41,9 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String COLUMN_TIEMPO = "tiempo";
     public static final String COLUMN_INTENSIDAD2 = "intensidad2";
     public static final String COLUMN_TIEMPO2 = "tiempo2";
+    // Última fecha de modificación que el servidor reportó para este paciente.
+    // Se usa como base para detectar conflictos al sincronizar (ver Fase 4).
+    public static final String COLUMN_FECHA_ACTUALIZACION = "fecha_actualizacion";
 
     // Tabla USUARIOS
     public static final String TABLE_USUARIOS = "usuarios";
@@ -95,6 +101,11 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String COLUMN_BP_INTENSIDAD2 = "intensidad2";
     public static final String COLUMN_BP_TIEMPO2 = "tiempo2";
     public static final String COLUMN_BP_FECHA = "fecha";
+    // Fotografía del fecha_actualizacion del paciente en el momento en que el
+    // médico empezó a editarlo offline. Se envía al servidor como
+    // fechaActualizacionLocal para que pueda detectar conflictos. Se preserva
+    // entre ediciones repetidas del mismo paciente sin sincronizar.
+    public static final String COLUMN_BP_FECHA_ACTUALIZACION_LOCAL = "fecha_actualizacion_local";
 
     // Tabla ELIMINACIONES_PENDIENTES: IDs de pacientes marcados para borrar
     // en la tablet pero aún no confirmados por el admin en el servidor.
@@ -117,7 +128,8 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     COLUMN_INTENSIDAD + " INTEGER, " +
                     COLUMN_TIEMPO + " INTEGER, " +
                     COLUMN_INTENSIDAD2 + " INTEGER DEFAULT 0, " +
-                    COLUMN_TIEMPO2 + " INTEGER DEFAULT 0)";
+                    COLUMN_TIEMPO2 + " INTEGER DEFAULT 0, " +
+                    COLUMN_FECHA_ACTUALIZACION + " TEXT)";
 
     // SQL para crear tabla USUARIOS
     private static final String SQL_CREATE_USUARIOS =
@@ -186,7 +198,8 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     COLUMN_BP_TIEMPO + " INTEGER, " +
                     COLUMN_BP_INTENSIDAD2 + " INTEGER, " +
                     COLUMN_BP_TIEMPO2 + " INTEGER, " +
-                    COLUMN_BP_FECHA + " TEXT NOT NULL)";
+                    COLUMN_BP_FECHA + " TEXT NOT NULL, " +
+                    COLUMN_BP_FECHA_ACTUALIZACION_LOCAL + " TEXT)";
 
     // SQL para crear tabla ELIMINACIONES_PENDIENTES.
     private static final String SQL_CREATE_ELIMINACIONES_PENDIENTES =
@@ -328,6 +341,25 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             Log.d("PacienteDBHelper", "Tabla eliminaciones_pendientes creada");
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error al crear eliminaciones_pendientes: " + e.getMessage());
+        }
+    }
+    if (oldVersion < 7) {
+        // Migración v6 → v7: añadir columnas de timestamp para detección de
+        // conflictos por la API. Quedan a NULL en filas existentes; se
+        // rellenan automáticamente en la próxima descarga / edición offline.
+        try {
+            db.execSQL("ALTER TABLE " + TABLE_PACIENTES +
+                    " ADD COLUMN " + COLUMN_FECHA_ACTUALIZACION + " TEXT");
+            Log.d("PacienteDBHelper", "Columna fecha_actualizacion añadida a pacientes");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error al añadir fecha_actualizacion: " + e.getMessage());
+        }
+        try {
+            db.execSQL("ALTER TABLE " + TABLE_BACKUP_PENDIENTE +
+                    " ADD COLUMN " + COLUMN_BP_FECHA_ACTUALIZACION_LOCAL + " TEXT");
+            Log.d("PacienteDBHelper", "Columna fecha_actualizacion_local añadida a backup_pendiente");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error al añadir fecha_actualizacion_local: " + e.getMessage());
         }
     }
 }
