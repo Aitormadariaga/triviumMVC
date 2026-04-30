@@ -140,6 +140,11 @@ public class SincronizacionManager {
                                     dataManager.actualizarFechaActualizacion(idLocal, nuevaFecha);
                                 }
                                 eliminarCambiosPendientesDePaciente(idLocal);
+                                // Si el cambio recién sincronizado era una
+                                // eliminación, también limpiamos su entrada
+                                // de eliminaciones_pendientes. Es idempotente:
+                                // si no había entrada, no hace nada.
+                                dataManager.eliminarEliminacionPendiente(idLocal);
                             }
                         }
 
@@ -154,8 +159,25 @@ public class SincronizacionManager {
                             for (int i = 0; i < errores.length(); i++) {
                                 JSONObject err = errores.getJSONObject(i);
                                 String razon = err.optString("razon", "");
+                                // Razones irrecuperables: el cambio nunca se va
+                                // a aplicar tal cual, por tanto lo limpiamos
+                                // localmente para no reintentarlo eternamente.
+                                //   - dni_duplicado: ya hay otro paciente con
+                                //     ese DNI; el local debería fundirse con
+                                //     él (descargarTodo lo hará).
+                                //   - paciente_no_encontrado: el server_id que
+                                //     enviamos no existe (paciente fantasma o
+                                //     borrado a la fuerza).
+                                //   - paciente_inactivo: el paciente fue
+                                //     soft-deleted en server por otro usuario;
+                                //     nuestra edición no aplica. El paciente
+                                //     se borrará localmente en el descargarTodo
+                                //     (ya no aparece en /api/pacientes).
+                                //   - campos_obligatorios: validación dura;
+                                //     el médico tendría que reeditar.
                                 if (!"dni_duplicado".equals(razon)
                                         && !"paciente_no_encontrado".equals(razon)
+                                        && !"paciente_inactivo".equals(razon)
                                         && !"campos_obligatorios".equals(razon)) {
                                     continue;
                                 }

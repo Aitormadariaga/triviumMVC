@@ -402,11 +402,17 @@ public class PacienteDataManager {
 
     // Obtener todos los pacientes
     public Cursor obtenerTodosPacientes() {
-
+        // Excluimos pacientes con eliminación pendiente: la fila local sigue
+        // existiendo (preservamos server_id para el sync) pero el médico no
+        // debe verla porque ya pulsó "Borrar". Tras un sync exitoso la fila
+        // se borra de verdad por el soft-delete propagado, así que esta
+        // exclusión es transitoria.
         return database.query(
                 PacienteDBHelper.TABLE_PACIENTES,
                 null,
-                null,
+                PacienteDBHelper.COLUMN_ID + " NOT IN (SELECT "
+                        + PacienteDBHelper.COLUMN_EP_PACIENTE_ID + " FROM "
+                        + PacienteDBHelper.TABLE_ELIMINACIONES_PENDIENTES + ")",
                 null,
                 null,
                 null,
@@ -522,13 +528,30 @@ public class PacienteDataManager {
                     new String[]{String.valueOf(idPaciente)}
             );
 
-            // 4. Borrar el paciente. Si no existía, rollback (no tocamos nada).
-            int filasBorradas = database.delete(
-                    PacienteDBHelper.TABLE_PACIENTES,
-                    PacienteDBHelper.COLUMN_ID + " = ?",
-                    new String[] { String.valueOf(idPaciente) }
-            );
-            if (filasBorradas <= 0) {
+            // 4. NO borramos físicamente la fila pacientes. Si lo hiciéramos,
+            // perderíamos su server_id y el sync no podría enviar la
+            // eliminación al servidor (el cambio pendiente quedaría con
+            // pacienteId=null y el server lo interpretaría como CREATE).
+            // En su lugar el caller registra una entrada en
+            // eliminaciones_pendientes y filtramos la lista visible para
+            // ocultarlo. El soft-delete propagado en guardarPacientesDesdeServidor
+            // borra la fila localmente cuando el servidor confirme la
+            // eliminación (deja de devolver al paciente).
+            // Verificamos que la fila exista para devolver false como antes.
+            Cursor c = null;
+            int existe;
+            try {
+                c = database.query(
+                        PacienteDBHelper.TABLE_PACIENTES,
+                        new String[]{PacienteDBHelper.COLUMN_ID},
+                        PacienteDBHelper.COLUMN_ID + " = ?",
+                        new String[]{String.valueOf(idPaciente)},
+                        null, null, null);
+                existe = (c != null && c.moveToFirst()) ? 1 : 0;
+            } finally {
+                if (c != null) c.close();
+            }
+            if (existe == 0) {
                 return false;
             }
 
@@ -1034,6 +1057,61 @@ public class PacienteDataManager {
     }
 
     /**
+     * Construye el ContentValues para upsert de un paciente venido del
+     * servidor (formato JSON de /api/pacientes y de versionServidor en
+     * conflictos). Centraliza el mapeo campo a campo y el manejo
+     * defensivo de JSONObject.NULL → SQLite null. Usado tanto por la
+     * descarga masiva (guardarPacientesDesdeServidor) como por el
+     * upsert quirúrgico de un solo paciente (aplicarPacienteDesdeServidor).
+     */
+    private ContentValues construirValuesPacienteServidor(JSONObject p) throws org.json.JSONException {
+        ContentValues values = new ContentValues();
+        values.put(PacienteDBHelper.COLUMN_SERVER_ID, p.getInt("id"));
+        // OJO: optString("x") devuelve la cadena literal "null" si la value
+        // es JSONObject.NULL en lugar de null Java. Por eso isNull() defensivo
+        // en todos los strings.
+        values.put(PacienteDBHelper.COLUMN_CIC,        p.isNull("cic")        ? null : p.optString("cic"));
+        values.put(PacienteDBHelper.COLUMN_DNI,        p.isNull("dni")        ? null : p.optString("dni"));
+        values.put(PacienteDBHelper.COLUMN_NOMBRE,     p.isNull("nombre")     ? null : p.optString("nombre"));
+        values.put(PacienteDBHelper.COLUMN_APELLIDO1,  p.isNull("apellido1")  ? null : p.optString("apellido1"));
+        values.put(PacienteDBHelper.COLUMN_APELLIDO2,  p.isNull("apellido2")  ? null : p.optString("apellido2"));
+        values.put(PacienteDBHelper.COLUMN_EDAD, p.optInt("edad"));
+        values.put(PacienteDBHelper.COLUMN_GENERO,     p.isNull("genero")     ? null : p.optString("genero"));
+        values.put(PacienteDBHelper.COLUMN_PATOLOGIA,  p.isNull("patologia")  ? null : p.optString("patologia"));
+        values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, p.isNull("medicacion") ? null : p.optString("medicacion"));
+        values.put(PacienteDBHelper.COLUMN_INTENSIDAD, p.optInt("intensidad"));
+        values.put(PacienteDBHelper.COLUMN_TIEMPO, p.optInt("tiempo"));
+        values.put(PacienteDBHelper.COLUMN_INTENSIDAD2, p.optInt("intensidad2"));
+        values.put(PacienteDBHelper.COLUMN_TIEMPO2, p.optInt("tiempo2"));
+        values.put(PacienteDBHelper.COLUMN_FECHA_ACTUALIZACION,
+                p.isNull("fechaActualizacion") ? null : p.optString("fechaActualizacion"));
+        return values;
+    }
+
+    /**
+     * Upsert quirúrgico de UN solo paciente. A diferencia de
+     * guardarPacientesDesdeServidor (que toma la lista completa y propaga
+     * soft-delete a los locales que ya no están en server), este método NO
+     * borra nada — solo crea o actualiza la fila del paciente recibido.
+     *
+     * Se usa al resolver un conflicto con "mantener": el cliente ya tiene
+     * la versionServidor cargada y solo quiere refrescar esa fila local
+     * sin tocar al resto de pacientes.
+     */
+    public void aplicarPacienteDesdeServidor(JSONObject p) throws Exception {
+        ContentValues values = construirValuesPacienteServidor(p);
+        int serverId = p.getInt("id");
+        int filasActualizadas = database.update(
+                PacienteDBHelper.TABLE_PACIENTES,
+                values,
+                PacienteDBHelper.COLUMN_SERVER_ID + " = ?",
+                new String[]{String.valueOf(serverId)});
+        if (filasActualizadas == 0) {
+            database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
+        }
+    }
+
+    /**
      * Asigna o actualiza el server_id de una fila local. Se llama tras un
      * CREATE exitoso para que la próxima sincronización envíe el id real
      * y el servidor pueda hacer UPDATE en lugar de tratar el cambio como
@@ -1415,27 +1493,7 @@ public class PacienteDataManager {
                     continue;
                 }
 
-                ContentValues values = new ContentValues();
-                values.put(PacienteDBHelper.COLUMN_SERVER_ID, serverId);
-                // OJO: JSONObject.optString devuelve la cadena literal "null"
-                // (4 caracteres) cuando el value es JSONObject.NULL en lugar de
-                // null real. Por eso usamos isNull() defensivamente para
-                // todos los strings que el servidor puede devolver como null.
-                values.put(PacienteDBHelper.COLUMN_CIC,        p.isNull("cic")        ? null : p.optString("cic"));
-                values.put(PacienteDBHelper.COLUMN_DNI,        p.isNull("dni")        ? null : p.optString("dni"));
-                values.put(PacienteDBHelper.COLUMN_NOMBRE,     p.isNull("nombre")     ? null : p.optString("nombre"));
-                values.put(PacienteDBHelper.COLUMN_APELLIDO1,  p.isNull("apellido1")  ? null : p.optString("apellido1"));
-                values.put(PacienteDBHelper.COLUMN_APELLIDO2,  p.isNull("apellido2")  ? null : p.optString("apellido2"));
-                values.put(PacienteDBHelper.COLUMN_EDAD, p.optInt("edad"));
-                values.put(PacienteDBHelper.COLUMN_GENERO,     p.isNull("genero")     ? null : p.optString("genero"));
-                values.put(PacienteDBHelper.COLUMN_PATOLOGIA,  p.isNull("patologia")  ? null : p.optString("patologia"));
-                values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, p.isNull("medicacion") ? null : p.optString("medicacion"));
-                values.put(PacienteDBHelper.COLUMN_INTENSIDAD, p.optInt("intensidad"));
-                values.put(PacienteDBHelper.COLUMN_TIEMPO, p.optInt("tiempo"));
-                values.put(PacienteDBHelper.COLUMN_INTENSIDAD2, p.optInt("intensidad2"));
-                values.put(PacienteDBHelper.COLUMN_TIEMPO2, p.optInt("tiempo2"));
-                values.put(PacienteDBHelper.COLUMN_FECHA_ACTUALIZACION,
-                        p.isNull("fechaActualizacion") ? null : p.optString("fechaActualizacion"));
+                ContentValues values = construirValuesPacienteServidor(p);
 
                 int filasActualizadas = database.update(
                         PacienteDBHelper.TABLE_PACIENTES,

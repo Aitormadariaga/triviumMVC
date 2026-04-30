@@ -979,22 +979,33 @@ public class MainActivity extends AppCompatActivity
             JSONObject versionTablet   = conflicto.getJSONObject("versionTablet");
             JSONObject versionServidor = conflicto.getJSONObject("versionServidor");
 
-            String nombreTablet   = versionTablet.optString("nombre", "?")
+            String nombreTablet  = versionTablet.optString("nombre", "?")
                     + " " + versionTablet.optString("apellido1", "");
-            String medicoServidor = versionServidor.optString("usuario", "otro médico");
-            String fechaServidor  = versionServidor.optString("fecha", "");
+            // El conflicto del server trae la fecha de actualización al
+            // nivel raíz como `fechaActualizacionServidor`, no dentro de
+            // `versionServidor`. Usuario actualmente no se devuelve, por
+            // eso el texto habla genéricamente de "otro usuario".
+            String fechaServidor = conflicto.optString("fechaActualizacionServidor", "");
+
+            StringBuilder msg = new StringBuilder("El paciente ")
+                    .append(nombreTablet.trim())
+                    .append(" también fue modificado por otro usuario");
+            if (!fechaServidor.isEmpty()) {
+                msg.append(" el ").append(fechaServidor);
+            }
+            msg.append(".\n\n¿Qué versión quieres mantener?");
 
             new AlertDialog.Builder(this)
                     .setTitle("Conflicto detectado")
-                    .setMessage(
-                            "El paciente " + nombreTablet.trim() +
-                                    " también fue modificado por " + medicoServidor +
-                                    " el " + fechaServidor + ".\n\n¿Qué versión quieres mantener?"
-                    )
+                    .setMessage(msg.toString())
                     .setPositiveButton("Mis cambios", (dialog, which) -> {
+                        // "sobreescribir" en el contrato del servidor = pisar
+                        // la versión del server con la nuestra (versionTablet).
+                        // Antes mandábamos "mantener" aquí por error y el
+                        // servidor descartaba silenciosamente nuestro cambio.
                         sincronizacionManager.resolverConflicto(
                                 pacienteId,
-                                "mantener",
+                                "sobreescribir",
                                 versionTablet,
                                 new SincronizacionListener() {
                                     @Override
@@ -1015,14 +1026,36 @@ public class MainActivity extends AppCompatActivity
                                 }
                         );
                     })
-                    .setNegativeButton("Cambios de " + medicoServidor, (dialog, which) -> {
+                    .setNegativeButton("Cambios del servidor", (dialog, which) -> {
+                        // "mantener" = quédate con la versión que ya tiene el
+                        // servidor; nuestro versionTablet se descarta y por
+                        // tanto no se manda. El servidor solo limpia el
+                        // marcador de conflicto y devuelve OK.
                         sincronizacionManager.resolverConflicto(
                                 pacienteId,
-                                "sobreescribir",
+                                "mantener",
                                 null,
                                 new SincronizacionListener() {
                                     @Override
                                     public void onCompletado(int s, int c) {
+                                        // El servidor solo confirmó "no toques
+                                        // tu BD remota"; nuestra SQLite local
+                                        // tiene los cambios que el médico
+                                        // descartó. Aplicamos versionServidor
+                                        // (ya cargada en el conflicto) sobre
+                                        // la fila local con el upsert
+                                        // quirúrgico (sin propagar soft-delete:
+                                        // si llamáramos a guardarPacientesDes-
+                                        // deServidor con un array de un solo
+                                        // paciente, el método interpretaría
+                                        // que el resto ha desaparecido del
+                                        // servidor y los borraría todos).
+                                        try {
+                                            dataManager.aplicarPacienteDesdeServidor(versionServidor);
+                                        } catch (Exception ex) {
+                                            Log.e(TAG, "No se pudo refrescar fila local tras 'mantener': "
+                                                    + ex.getMessage());
+                                        }
                                         mostrarDialogoConflicto(conflictos, indice + 1);
                                     }
                                     @Override
