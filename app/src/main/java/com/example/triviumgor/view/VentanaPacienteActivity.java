@@ -364,9 +364,12 @@ public class VentanaPacienteActivity extends AppCompatActivity {
     // ========================
 
     private void actualizarListaPacientes() {
-        List<com.example.triviumgor.model.Paciente> lista = (idUsuarioActual == -1)
-                ? pacienteController.obtenerTodosPacientes()
-                : pacienteController.obtenerPacientesDeUsuario(idUsuarioActual);
+        // Decisión de diseño del proyecto: todos los usuarios autenticados ven
+        // todos los pacientes, no se filtra por vínculo usuario↔paciente. El
+        // vínculo se mantiene en BD solo para auditoría (saber quién creó
+        // cada paciente), no para restringir la visibilidad.
+        List<com.example.triviumgor.model.Paciente> lista =
+                pacienteController.obtenerTodosPacientes();
         if (lista.isEmpty()) {
             pacientesNombres = new String[]{"No hay pacientes registrados"};
             pacientesIds = new int[0];

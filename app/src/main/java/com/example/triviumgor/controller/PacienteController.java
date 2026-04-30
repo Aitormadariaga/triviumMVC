@@ -68,8 +68,12 @@ public class PacienteController {
 
     /**
      * Valida que los campos obligatorios no estén vacíos.
+     * CIC se exige porque el contrato del servidor (entidad Paciente con
+     * columna NOT NULL y validación explícita en /api/sincronizar) lo
+     * requiere para crear o actualizar; si la app deja pasar un CIC vacío,
+     * el sync explota con campos_obligatorios y el paciente nunca se sube.
      */
-    public Resultado validarCamposObligatorios(String dni, String nombre, String apellido1) {
+    public Resultado validarCamposObligatorios(String dni, String nombre, String apellido1, String cic) {
         if (dni == null || dni.trim().isEmpty()) {
             return Resultado.error("El DNI es obligatorio");
         }
@@ -78,6 +82,9 @@ public class PacienteController {
         }
         if (apellido1 == null || apellido1.trim().isEmpty()) {
             return Resultado.error("El primer apellido es obligatorio");
+        }
+        if (cic == null || cic.trim().isEmpty()) {
+            return Resultado.error("El CIC es obligatorio");
         }
         return Resultado.ok("Campos válidos");
     }
@@ -132,7 +139,7 @@ public class PacienteController {
                                      String patologia, String medicacion,
                                      String intensidadStr, String tiempoStr, String cic) {
         // Validar campos obligatorios
-        Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1);
+        Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1, cic);
         if (!validacion.exito) return validacion;
 
         // Validar formato DNI
@@ -171,6 +178,11 @@ public class PacienteController {
                 dataManager.vincularUsuarioPaciente(idUsuarioCreador, (int) resultadoId, "creador");
             }
 
+            // Registrar como cambio pendiente para que el próximo sync lo suba.
+            // Sin esto, los pacientes creados offline nunca llegan al servidor.
+            registrarCreacionComoCambioPendiente((int) resultadoId, dni, nombre, apellido1, apellido2,
+                    edad, genero, patologia, medicacion, intensidad, tiempo, 0, 0, cic);
+
             return Resultado.ok("Paciente guardado correctamente", resultadoId);
         } else {
             return Resultado.error("Error al guardar el paciente");
@@ -197,7 +209,7 @@ public class PacienteController {
                                           String intensidadStr, String tiempoStr,
                                           String intensidadStr2, String tiempoStr2, String cic) {
         // Validar campos obligatorios
-        Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1);
+        Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1, cic);
         if (!validacion.exito) return validacion;
 
         // Validar formato DNI
@@ -236,6 +248,11 @@ public class PacienteController {
             if (idUsuarioCreador != -1) {
                 dataManager.vincularUsuarioPaciente(idUsuarioCreador, (int) resultadoId, "creador");
             }
+
+            // Registrar como cambio pendiente para que el próximo sync lo suba.
+            registrarCreacionComoCambioPendiente((int) resultadoId, dni, nombre, apellido1, apellido2,
+                    edad, genero, patologia, medicacion, intensidad, tiempo, intensidad2, tiempo2, cic);
+
             return Resultado.ok("Paciente guardado correctamente", resultadoId);
         } else {
             return Resultado.error("Error al guardar el paciente");
@@ -252,12 +269,48 @@ public class PacienteController {
     }
 
     /**
+     * Helper para registrar la creación de un paciente como cambio pendiente.
+     * Llamado desde guardarPaciente y guardarPaciente2disp para asegurar que
+     * los pacientes creados offline se suben al servidor en el próximo sync.
+     * Si falla la escritura del cambio pendiente no se aborta la operación,
+     * porque el paciente ya está guardado en SQLite local.
+     */
+    private void registrarCreacionComoCambioPendiente(int id, String dni, String nombre,
+                                                      String apellido1, String apellido2,
+                                                      int edad, String genero,
+                                                      String patologia, String medicacion,
+                                                      int intensidad, int tiempo,
+                                                      int intensidad2, int tiempo2, String cic) {
+        if (sincronizacionManager == null) return;
+        try {
+            JSONObject datos = new JSONObject();
+            datos.put("cic",          cic != null ? cic : "");
+            datos.put("dni",          dni);
+            datos.put("nombre",       nombre);
+            datos.put("apellido1",    apellido1);
+            datos.put("apellido2",    apellido2 != null ? apellido2 : "");
+            datos.put("edad",         edad);
+            datos.put("genero",       genero);
+            datos.put("patologia",    patologia != null ? patologia : "");
+            datos.put("medicacion",   medicacion != null ? medicacion : "");
+            datos.put("intensidad",   intensidad);
+            datos.put("tiempo",       tiempo);
+            datos.put("intensidad2",  intensidad2);
+            datos.put("tiempo2",      tiempo2);
+            sincronizacionManager.guardarCambioPendiente(id, false, datos);
+        } catch (Exception e) {
+            // No bloqueamos: el paciente ya quedó en SQLite local, se podrá
+            // re-intentar el sync más adelante.
+        }
+    }
+
+    /**
      * Actualiza un paciente existente.
      */
     public Resultado actualizarPaciente(int id, String dni, String nombre, String apellido1, String apellido2, String edadStr, String genero,
                                         String patologia, String medicacion,
                                         String intensidadStr, String tiempoStr, String cic) {
-        Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1);
+        Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1, cic);
         if (!validacion.exito) return validacion;
 
         validacion = validarDNI(dni);
@@ -327,7 +380,7 @@ public class PacienteController {
                                              String patologia, String medicacion,
                                              String intensidadStr, String tiempoStr,
                                              String intensidadStr2, String tiempoStr2, String cic) {
-        Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1);
+        Resultado validacion = validarCamposObligatorios(dni, nombre, apellido1, cic);
         if (!validacion.exito) return validacion;
 
         validacion = validarDNI(dni);
@@ -497,7 +550,7 @@ public class PacienteController {
             String ap1 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO1));
             String ap2 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO2));
             int edad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_EDAD));
-            Paciente.Genero genero = Paciente.Genero.valueOf((cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO))));
+            Paciente.Genero genero = Paciente.Genero.fromBd(cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO)));
             String patologia = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_PATOLOGIA));
             String medicacion = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_MEDICACIÓN));
             int intensidad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD));
@@ -536,7 +589,7 @@ public class PacienteController {
                 String ap1 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO1));
                 String ap2 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO2));
                 int edad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_EDAD));
-                Paciente.Genero genero = Paciente.Genero.valueOf((cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO))));
+                Paciente.Genero genero = Paciente.Genero.fromBd(cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO)));
                 String patologia = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_PATOLOGIA));
                 String medicacion = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_MEDICACIÓN));
                 int intensidad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD));
@@ -770,7 +823,7 @@ public class PacienteController {
         String ap1 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO1));
         String ap2 = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_APELLIDO2));
         int edad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_EDAD));
-        Paciente.Genero genero = Paciente.Genero.valueOf(cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO)));
+        Paciente.Genero genero = Paciente.Genero.fromBd(cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_GENERO)));
         String patologia = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_PATOLOGIA));
         String medicacion = cursor.getString(cursor.getColumnIndex(PacienteDBHelper.COLUMN_MEDICACIÓN));
         int intensidad = cursor.getInt(cursor.getColumnIndex(PacienteDBHelper.COLUMN_INTENSIDAD));

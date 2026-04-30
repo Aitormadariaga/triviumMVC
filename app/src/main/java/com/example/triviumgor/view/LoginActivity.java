@@ -197,12 +197,36 @@ public class LoginActivity extends AppCompatActivity {
                 try {
                     String token = response.getString("token");
 
-                    // Guardar token en SharedPreferences
+                    // Decodificar el payload del JWT para obtener el rol del
+                    // usuario sin tener que llamar a /api/perfil. El payload
+                    // está en el segundo segmento, codificado en base64url.
+                    String rolDerivado = "USER";
+                    try {
+                        String[] parts = token.split("\\.");
+                        if (parts.length >= 2) {
+                            byte[] payloadBytes = android.util.Base64.decode(parts[1],
+                                    android.util.Base64.URL_SAFE | android.util.Base64.NO_WRAP);
+                            JSONObject payload = new JSONObject(new String(payloadBytes, "UTF-8"));
+                            org.json.JSONArray roles = payload.optJSONArray("roles");
+                            if (roles != null) {
+                                for (int i = 0; i < roles.length(); i++) {
+                                    String r = roles.getString(i);
+                                    if ("ROLE_ADMIN".equals(r)) { rolDerivado = "ADMIN"; break; }
+                                    if ("ROLE_MEDICO".equals(r)) { rolDerivado = "MEDICO"; }
+                                }
+                            }
+                        }
+                    } catch (Exception ignore) {
+                        // Si falla el decode mantenemos USER como fallback seguro.
+                    }
+
+                    // Guardar token + rol derivado en SharedPreferences
                     getSharedPreferences("LoginPrefs", MODE_PRIVATE)
                             .edit()
                             .putBoolean("isLoggedIn", true)
                             .putString("username", username)
                             .putString("jwt_token", token)
+                            .putString("rol", rolDerivado)
                             .apply();
 
                     // También hacer login local para mantener la sesión offline

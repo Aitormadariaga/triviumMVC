@@ -141,5 +141,22 @@ public class Paciente {
         public String getEtiqueta() {
             return etiqueta;
         }
+
+        /**
+         * Convierte un string venido de SQLite, JSON del servidor o cualquier
+         * fuente externa al enum, aceptando tanto el nombre técnico
+         * (MASCULINO) como la etiqueta visible (Masculino), case-insensitive.
+         * Si el valor es null, vacío o no reconocido, devuelve
+         * PREFIERO_NO_DECIR para no romper la lectura de la lista.
+         */
+        public static Genero fromBd(String raw) {
+            if (raw == null || raw.trim().isEmpty()) return PREFIERO_NO_DECIR;
+            String norm = raw.trim();
+            for (Genero g : values()) {
+                if (g.name().equalsIgnoreCase(norm)) return g;
+                if (g.etiqueta.equalsIgnoreCase(norm)) return g;
+            }
+            return PREFIERO_NO_DECIR;
+        }
     }
 }

@@ -599,13 +599,39 @@ public class MainActivity extends AppCompatActivity
 
                 @Override
                 public void onCompletado(int sincronizados, int conflictos) {
-                    runOnUiThread(() -> {
-                        btnSincronizar.setEnabled(true);
-                        btnSincronizar.setText("Sincronizar");
-                        Toast.makeText(MainActivity.this,
-                                "Sincronización completada",
-                                Toast.LENGTH_SHORT).show();
-                    });
+                    // Tras subir cambios al servidor, descargamos la lista
+                    // autoritativa para reflejar pacientes nuevos creados desde
+                    // la web por otros médicos y los IDs reales que el servidor
+                    // ha asignado a los pacientes que la tablet acaba de subir.
+                    sincronizacionManager.descargarTodo(
+                            new SincronizacionManager.DescargaListener() {
+                                @Override
+                                public void onCompletado(int pacientes, int sesiones) {
+                                    runOnUiThread(() -> {
+                                        btnSincronizar.setEnabled(true);
+                                        btnSincronizar.setText("Sincronizar");
+                                        Toast.makeText(MainActivity.this,
+                                                "Sincronización completada — " +
+                                                        pacientes + " pacientes en lista",
+                                                Toast.LENGTH_SHORT).show();
+                                    });
+                                }
+
+                                @Override
+                                public void onError(String msg) {
+                                    runOnUiThread(() -> {
+                                        btnSincronizar.setEnabled(true);
+                                        btnSincronizar.setText("Sincronizar");
+                                        // El upload sí fue exitoso, solo falló la descarga
+                                        // posterior — no es crítico, avisamos pero no
+                                        // mostramos como error grave.
+                                        Toast.makeText(MainActivity.this,
+                                                "Subida OK — no se pudo refrescar lista: " + msg,
+                                                Toast.LENGTH_LONG).show();
+                                    });
+                                }
+                            }
+                    );
                 }
 
                 @Override

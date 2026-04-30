@@ -76,46 +76,102 @@ public class SincronizacionManager {
         Log.d(TAG, "Sincronizando — cambios: " + cambios.length());
 
         if (hayCambios) {
+            Log.d(TAG, "==> ENVIANDO sincronizar: " + cambios.toString());
+
             // Paso 1 — Sincronizar cambios de pacientes
             apiClient.sincronizar(cambios, new ApiClient.ApiCallback() {
                 @Override
                 public void onSuccess(JSONObject response) {
                     try {
+                        Log.d(TAG, "<== RESPONSE sincronizar: " + response.toString());
+
                         JSONArray sincronizados = response.optJSONArray("sincronizados");
                         JSONArray conflictos    = response.optJSONArray("conflictos");
 
-                        // Eliminar de SQLite los que se sincronizaron sin conflicto
-                        // y refrescar el fecha_actualizacion local con el que
-                        // el servidor reporta. Acepta dos formatos:
-                        //   - Nuevo (Fase 4): JSONObject {pacienteId, fechaActualizacion}
-                        //   - Viejo: int (solo el id, sin timestamp)
-                        // El servidor de produccion ya esta en formato nuevo
-                        // (commit 3a7b855 de WebTrivium-BBDDCloud); el branch
-                        // viejo queda como red de seguridad: solo loguea
-                        // warning, no fuerza descarga completa.
+                        Log.d(TAG, "Sincronizados: " + (sincronizados == null ? "null" : sincronizados.length())
+                                + " | Conflictos: " + (conflictos == null ? "null" : conflictos.length()));
+
+                        // Procesar sincronizados[]: cada item trae
+                        // {pacienteId (server_id), dni, fechaActualizacion}.
+                        // Correlacionamos por DNI con la fila local porque el
+                        // server_id puede ser nuevo (CREATE recién aceptado)
+                        // y aún no estar guardado localmente. Tras encontrar
+                        // el _id local:
+                        //   - Rellenamos server_id si era CREATE.
+                        //   - Refrescamos fechaActualizacion local con el
+                        //     timestamp autoritativo del servidor.
+                        //   - Limpiamos el cambio pendiente que disparó este
+                        //     sincronizado (ya está aplicado en remoto).
                         if (sincronizados != null) {
                             for (int i = 0; i < sincronizados.length(); i++) {
                                 Object item = sincronizados.get(i);
-                                int pacienteId;
-                                String nuevaFecha = null;
-                                if (item instanceof JSONObject) {
-                                    JSONObject obj = (JSONObject) item;
-                                    pacienteId = obj.getInt("pacienteId");
-                                    nuevaFecha = obj.optString("fechaActualizacion", null);
-                                } else if (item instanceof Number) {
-                                    pacienteId = ((Number) item).intValue();
-                                    Log.w(TAG, "sincronizados[] en formato viejo (solo id) " +
-                                            "para paciente " + pacienteId +
-                                            "; fecha_actualizacion local quedara desactualizada " +
-                                            "hasta la proxima descarga");
-                                } else {
+                                if (!(item instanceof JSONObject)) {
                                     Log.w(TAG, "Elemento de sincronizados[] con tipo inesperado: " +
                                             (item == null ? "null" : item.getClass().getName()));
                                     continue;
                                 }
-                                eliminarCambiosPendientesDePaciente(pacienteId);
+                                JSONObject obj = (JSONObject) item;
+                                int serverId = obj.getInt("pacienteId");
+                                String dni = obj.optString("dni", null);
+                                String nuevaFecha = obj.optString("fechaActualizacion", null);
+
+                                // Resolvemos el _id local: por server_id si la
+                                // fila ya estaba mapeada, o por DNI si era un
+                                // CREATE que acaba de recibir su server_id.
+                                int idLocal = dataManager.obtenerIdLocalPorServerId(serverId);
+                                if (idLocal == -1 && dni != null && !dni.isEmpty()) {
+                                    idLocal = dataManager.obtenerIdLocalPorDni(dni);
+                                }
+                                if (idLocal == -1) {
+                                    Log.w(TAG, "Sincronizado sin fila local correlacionable: server_id="
+                                            + serverId + " dni=" + dni);
+                                    continue;
+                                }
+
+                                // Si la fila local todavía no tenía server_id
+                                // (caso CREATE), lo rellenamos para que las
+                                // próximas sincronizaciones manden el id real.
+                                Integer serverIdActual = dataManager.obtenerServerIdPorIdLocal(idLocal);
+                                if (serverIdActual == null) {
+                                    dataManager.actualizarServerIdDePaciente(idLocal, serverId);
+                                }
+
                                 if (nuevaFecha != null) {
-                                    dataManager.actualizarFechaActualizacion(pacienteId, nuevaFecha);
+                                    dataManager.actualizarFechaActualizacion(idLocal, nuevaFecha);
+                                }
+                                eliminarCambiosPendientesDePaciente(idLocal);
+                            }
+                        }
+
+                        // Procesar errores irrecuperables: limpiamos los cambios
+                        // pendientes locales que el servidor rechazó por dni_duplicado,
+                        // paciente_no_encontrado o campos_obligatorios. Sin esto, el
+                        // cliente reintentaría eternamente cambios que jamás van a
+                        // aplicar. Correlacionamos por orden (servidor devuelve los
+                        // errores en el mismo orden que los cambios enviados).
+                        JSONArray errores = response.optJSONArray("errores");
+                        if (errores != null && errores.length() > 0) {
+                            for (int i = 0; i < errores.length(); i++) {
+                                JSONObject err = errores.getJSONObject(i);
+                                String razon = err.optString("razon", "");
+                                if (!"dni_duplicado".equals(razon)
+                                        && !"paciente_no_encontrado".equals(razon)
+                                        && !"campos_obligatorios".equals(razon)) {
+                                    continue;
+                                }
+                                // Mapeo por índice asumiendo que el server
+                                // procesó cambios en orden y produjo un error
+                                // por cada cambio fallido. Si en el futuro el
+                                // server intercala success/error, este mapeo
+                                // pierde precisión y habría que migrar a un
+                                // identificador estable (DNI, idCliente, ...).
+                                if (i < cambios.length()) {
+                                    String dniCambio = cambios.getJSONObject(i).optString("dni", "");
+                                    if (!dniCambio.isEmpty()) {
+                                        Log.d(TAG, "Limpiando cambio fantasma con razón "
+                                                + razon + " para DNI " + dniCambio);
+                                        dataManager.limpiarCambiosFantasmaPorDni(dniCambio);
+                                    }
                                 }
                             }
                         }
@@ -123,6 +179,22 @@ public class SincronizacionManager {
                         // Si hay conflictos → el usuario decide primero
                         // Las sesiones se sincronizan después de resolver conflictos
                         if (conflictos != null && conflictos.length() > 0) {
+                            // El servidor solo devuelve versionServidor en cada
+                            // conflicto. La UI necesita también versionTablet
+                            // para mostrar al médico qué cambios quiere imponer.
+                            // Enriquecemos copiando los datos que esta tablet
+                            // envió en `cambios` (match por pacienteId).
+                            for (int i = 0; i < conflictos.length(); i++) {
+                                JSONObject conflicto = conflictos.getJSONObject(i);
+                                int pid = conflicto.getInt("pacienteId");
+                                for (int j = 0; j < cambios.length(); j++) {
+                                    JSONObject cambio = cambios.getJSONObject(j);
+                                    if (cambio.optInt("pacienteId", -1) == pid) {
+                                        conflicto.put("versionTablet", cambio);
+                                        break;
+                                    }
+                                }
+                            }
                             listener.onConflictos(conflictos);
                             return;
                         }
@@ -131,12 +203,14 @@ public class SincronizacionManager {
                         sincronizarSesionesYComprobarEliminaciones(listener);
 
                     } catch (Exception e) {
+                        Log.e(TAG, "EXCEPCIÓN al procesar respuesta sincronizar: " + e.getMessage(), e);
                         listener.onError("Error al procesar respuesta del servidor");
                     }
                 }
 
                 @Override
                 public void onError(String mensaje) {
+                    Log.e(TAG, "ERROR HTTP sincronizar: " + mensaje);
                     listener.onError(mensaje);
                 }
             });
@@ -155,11 +229,18 @@ public class SincronizacionManager {
                                   JSONObject versionTablet,
                                   SincronizacionListener listener) {
 
+        // pacienteId aquí es el server_id (la UI lo saca del conflicto, que
+        // viene del servidor). Lo enviamos tal cual al endpoint y lo
+        // mapeamos a _id local solo para limpiar el cambio pendiente que
+        // generó este conflicto.
         apiClient.resolverConflicto(pacienteId, decision, versionTablet, null,
                 new ApiClient.ApiCallback() {
                     @Override
                     public void onSuccess(JSONObject response) {
-                        eliminarCambiosPendientesDePaciente(pacienteId);
+                        int idLocal = dataManager.obtenerIdLocalPorServerId(pacienteId);
+                        if (idLocal != -1) {
+                            eliminarCambiosPendientesDePaciente(idLocal);
+                        }
 
                         // Después de resolver el conflicto
                         // comprobar si quedan más cambios pendientes

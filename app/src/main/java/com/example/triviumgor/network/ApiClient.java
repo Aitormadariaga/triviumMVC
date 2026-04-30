@@ -15,7 +15,7 @@ import org.json.JSONObject;
 import java.util.HashMap;
 import java.util.Map;
 public class ApiClient {
-    private static final String BASE_URL = "http://TU_IP_GOOGLE_CLOUD:8000";
+    private static final String BASE_URL = "http://192.168.1.51:8000";
     private static final String PREFS_NAME = "LoginPrefs";
 
     private final RequestQueue queue;

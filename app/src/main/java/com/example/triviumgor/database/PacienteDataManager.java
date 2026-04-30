@@ -943,6 +943,118 @@ public class PacienteDataManager {
     }
 
     /**
+     * Resuelve el server_id de un paciente a partir de su _id local.
+     * Devuelve null si el paciente todavía no tiene server_id (creado
+     * offline y aún sin subir) o si el _id no existe en la tabla.
+     *
+     * Es la función clave para enviar el id correcto al servidor en cada
+     * sync: el _id local es solo de uso interno de SQLite, mientras que
+     * el server_id es la identidad del paciente en MariaDB.
+     */
+    public Integer obtenerServerIdPorIdLocal(int idLocal) {
+        Cursor c = null;
+        try {
+            c = database.query(
+                    PacienteDBHelper.TABLE_PACIENTES,
+                    new String[]{PacienteDBHelper.COLUMN_SERVER_ID},
+                    PacienteDBHelper.COLUMN_ID + " = ?",
+                    new String[]{String.valueOf(idLocal)},
+                    null, null, null
+            );
+            if (c != null && c.moveToFirst()) {
+                int idx = c.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_SERVER_ID);
+                if (c.isNull(idx)) return null;
+                return c.getInt(idx);
+            }
+            return null;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error obtenerServerIdPorIdLocal: " + e.getMessage());
+            return null;
+        } finally {
+            if (c != null) c.close();
+        }
+    }
+
+    /**
+     * Resuelve el _id local a partir de un server_id. Inversa de
+     * obtenerServerIdPorIdLocal. Se usa al recibir respuestas del servidor
+     * (sincronizados[]) para encontrar la fila local que hay que actualizar.
+     * Devuelve -1 si no hay correspondencia (ej. paciente creado por otra
+     * tablet que la nuestra todavía no ha descargado).
+     */
+    public int obtenerIdLocalPorServerId(int serverId) {
+        Cursor c = null;
+        try {
+            c = database.query(
+                    PacienteDBHelper.TABLE_PACIENTES,
+                    new String[]{PacienteDBHelper.COLUMN_ID},
+                    PacienteDBHelper.COLUMN_SERVER_ID + " = ?",
+                    new String[]{String.valueOf(serverId)},
+                    null, null, null
+            );
+            if (c != null && c.moveToFirst()) {
+                return c.getInt(c.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_ID));
+            }
+            return -1;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error obtenerIdLocalPorServerId: " + e.getMessage());
+            return -1;
+        } finally {
+            if (c != null) c.close();
+        }
+    }
+
+    /**
+     * Resuelve el _id local a partir de un DNI. Útil cuando un CREATE
+     * recién subido vuelve del servidor con su nuevo server_id; usamos el
+     * DNI (estable, único) para localizar la fila local que envió ese
+     * cambio y rellenarle el server_id que el servidor acaba de asignar.
+     */
+    public int obtenerIdLocalPorDni(String dni) {
+        if (dni == null || dni.trim().isEmpty()) return -1;
+        Cursor c = null;
+        try {
+            c = database.query(
+                    PacienteDBHelper.TABLE_PACIENTES,
+                    new String[]{PacienteDBHelper.COLUMN_ID},
+                    PacienteDBHelper.COLUMN_DNI + " = ?",
+                    new String[]{dni},
+                    null, null, null
+            );
+            if (c != null && c.moveToFirst()) {
+                return c.getInt(c.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_ID));
+            }
+            return -1;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error obtenerIdLocalPorDni: " + e.getMessage());
+            return -1;
+        } finally {
+            if (c != null) c.close();
+        }
+    }
+
+    /**
+     * Asigna o actualiza el server_id de una fila local. Se llama tras un
+     * CREATE exitoso para que la próxima sincronización envíe el id real
+     * y el servidor pueda hacer UPDATE en lugar de tratar el cambio como
+     * un CREATE nuevo.
+     */
+    public void actualizarServerIdDePaciente(int idLocal, int serverId) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_SERVER_ID, serverId);
+            database.update(
+                    PacienteDBHelper.TABLE_PACIENTES,
+                    values,
+                    PacienteDBHelper.COLUMN_ID + " = ?",
+                    new String[]{String.valueOf(idLocal)}
+            );
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error actualizarServerIdDePaciente: " + e.getMessage());
+        }
+    }
+
+    /**
      * Devuelve el fecha_actualizacion_local que se debe asociar a un nuevo
      * backup_pendiente del paciente indicado. Preserva el valor del primer
      * toque offline si ya hay backups pendientes anteriores; en caso
@@ -1012,8 +1124,28 @@ public class PacienteDataManager {
             if (cursor != null && cursor.moveToFirst()) {
                 do {
                     JSONObject cambio = new JSONObject();
-                    cambio.put("pacienteId", cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_PACIENTE_ID)));
-                    cambio.put("eliminar",   cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_ELIMINAR)) == 1);
+                    int pacienteIdLocal = cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_PACIENTE_ID));
+                    boolean eliminar = cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_ELIMINAR)) == 1;
+                    // El servidor identifica pacientes por server_id, no por
+                    // nuestro _id local. Resolvemos el server_id de la fila
+                    // local y lo enviamos como pacienteId. Si la fila aún no
+                    // tiene server_id (paciente creado offline) enviamos null:
+                    //   - Para CREATE → el endpoint hace INSERT y nos devuelve
+                    //     el server_id real en la respuesta.
+                    //   - Para DELETE de un paciente que nunca llegó al server
+                    //     enviamos null igualmente; el endpoint responde
+                    //     "campos_obligatorios" o similar y el cliente limpia
+                    //     el cambio fantasma localmente. Antes mandábamos el
+                    //     _id local en este caso, pero podía colisionar con
+                    //     un id de servidor distinto y borrar el paciente
+                    //     equivocado en remoto.
+                    Integer serverId = obtenerServerIdPorIdLocal(pacienteIdLocal);
+                    if (serverId == null) {
+                        cambio.put("pacienteId", JSONObject.NULL);
+                    } else {
+                        cambio.put("pacienteId", serverId.intValue());
+                    }
+                    cambio.put("eliminar", eliminar);
                     cambio.put("cic",        cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_CIC)));
                     cambio.put("dni",        cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_DNI)));
                     cambio.put("nombre",     cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_BP_NOMBRE)));
@@ -1059,8 +1191,21 @@ public class PacienteDataManager {
             );
             if (cursor != null && cursor.moveToFirst()) {
                 do {
+                    int pacienteIdLocal = cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_PACIENTE_ID));
+                    // Las sesiones referencian al paciente por su _id local
+                    // (FK interna de SQLite). Al subirlas al servidor hay que
+                    // traducir ese _id a server_id, igual que con los cambios
+                    // pendientes. Las sesiones de un paciente que aún no se
+                    // ha subido se quedan en cola: el endpoint las rechazaría
+                    // con paciente_no_encontrado y volaríamos sesiones reales.
+                    Integer serverId = obtenerServerIdPorIdLocal(pacienteIdLocal);
+                    if (serverId == null) {
+                        Log.d("PacienteDataManager", "Saltando sesión local id_paciente=" + pacienteIdLocal
+                                + ": paciente aún sin server_id, se subirá tras crear el paciente en server");
+                        continue;
+                    }
                     JSONObject sesion = new JSONObject();
-                    sesion.put("pacienteId",  cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_PACIENTE_ID)));
+                    sesion.put("pacienteId",  serverId.intValue());
                     sesion.put("dispositivo", cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_DISPOSITIVO)));
                     sesion.put("fecha",       cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_FECHA)));
                     sesion.put("intensidad",  cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_INTENSIDAD_SESION)));
@@ -1131,48 +1276,205 @@ public class PacienteDataManager {
     }
 
     /**
-     * Descarga masiva: reemplaza todos los pacientes locales por los que envía
-     * el servidor. Los pacientes marcados localmente como pendientes de
-     * eliminar se saltan para no resucitarlos antes de que el admin confirme.
+     * Borra cambios pendientes y eliminaciones pendientes locales asociados
+     * a un DNI. Se invoca cuando el servidor responde con un error
+     * irrecuperable (dni_duplicado, paciente_no_encontrado, campos
+     * obligatorios) para que el cliente no insista eternamente con un
+     * cambio que el servidor jamás va a aceptar. También borra el paciente
+     * local "fantasma" con ese DNI si existe, para que el siguiente
+     * descargarTodo lo recree con el id real del servidor.
+     */
+    public void limpiarCambiosFantasmaPorDni(String dni) {
+        if (dni == null || dni.trim().isEmpty()) return;
+        try {
+            int borradosBp = database.delete(
+                    PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
+                    PacienteDBHelper.COLUMN_BP_DNI + " = ?",
+                    new String[]{dni}
+            );
+            // Las eliminaciones pendientes están indexadas por pacienteId
+            // local. Buscamos primero esos ids a partir del DNI en la tabla
+            // pacientes y luego limpiamos.
+            Cursor cP = null;
+            try {
+                cP = database.query(
+                        PacienteDBHelper.TABLE_PACIENTES,
+                        new String[]{PacienteDBHelper.COLUMN_ID},
+                        PacienteDBHelper.COLUMN_DNI + " = ?",
+                        new String[]{dni},
+                        null, null, null);
+                if (cP != null && cP.moveToFirst()) {
+                    int idxId = cP.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_ID);
+                    do {
+                        int idLocal = cP.getInt(idxId);
+                        database.delete(
+                                PacienteDBHelper.TABLE_ELIMINACIONES_PENDIENTES,
+                                PacienteDBHelper.COLUMN_EP_PACIENTE_ID + " = ?",
+                                new String[]{String.valueOf(idLocal)}
+                        );
+                        // Borramos también el registro fantasma de pacientes
+                        // que nunca llegó al servidor (server_id NULL) para
+                        // que descargarTodo pueda traer el real con su id
+                        // correcto. Si la fila tiene server_id NO la tocamos
+                        // — está sincronizada y borrarla destruiría datos.
+                        database.delete(
+                                PacienteDBHelper.TABLE_PACIENTES,
+                                PacienteDBHelper.COLUMN_ID + " = ? AND " +
+                                        PacienteDBHelper.COLUMN_SERVER_ID + " IS NULL",
+                                new String[]{String.valueOf(idLocal)}
+                        );
+                    } while (cP.moveToNext());
+                }
+            } finally {
+                if (cP != null) cP.close();
+            }
+            Log.d("PacienteDataManager", "Limpieza fantasma por DNI " + dni
+                    + ": " + borradosBp + " cambios pendientes borrados");
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error limpiarCambiosFantasmaPorDni: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Descarga masiva del servidor con UPSERT por server_id (no destructivo).
+     *
+     * Antes del refactor v8 esta función borraba toda la tabla y la repoblaba
+     * con la lista del servidor; eso obligaba a parchear "preserva pacientes
+     * con cambios pendientes" para no perder creaciones offline. El refactor
+     * separa el _id local autoincrement del server_id real, y la función
+     * pasa a operar quirúrgicamente:
+     *
+     *   - Para cada paciente del JSON, buscamos fila local con server_id = id
+     *     servidor. Si existe → UPDATE conservando el _id local. Si no →
+     *     INSERT nuevo con server_id rellenado.
+     *   - Borramos las filas locales con server_id no nulo que YA NO estén
+     *     en la respuesta del servidor (porque el server las soft-deleteó).
+     *   - Las filas con server_id IS NULL son creaciones offline pendientes
+     *     de subir; no se tocan jamás aquí.
+     *
+     * También limpiamos eliminaciones_pendientes huérfanas (id de servidor
+     * que el servidor sigue devolviendo activo → la eliminación local nunca
+     * se confirmó).
      */
     public void guardarPacientesDesdeServidor(JSONArray pacientes) throws Exception {
-        List<Integer> eliminacionesPendientes = obtenerTodasEliminacionesPendientes();
+        // Conjunto de server_ids que el servidor sigue devolviendo activos.
+        java.util.Set<Integer> idsEnServer = new java.util.HashSet<>();
+        for (int i = 0; i < pacientes.length(); i++) {
+            idsEnServer.add(pacientes.getJSONObject(i).getInt("id"));
+        }
+
+        // Las eliminaciones pendientes están indexadas por _id local. Para
+        // compararlas con la lista del servidor (server_ids) tenemos que
+        // mapearlas. Si una eliminación apunta a una fila local sin
+        // server_id (paciente nunca subido) no sirve para sincronizar y la
+        // dejamos en paz; la limpia el flujo de cambios pendientes.
+        java.util.Set<Integer> serverIdsConEliminacionPendiente = new java.util.HashSet<>();
+        java.util.Map<Integer, Integer> elimLocalAServer = new java.util.HashMap<>();
+        for (Integer idLocalElim : obtenerTodasEliminacionesPendientes()) {
+            Integer serverIdElim = obtenerServerIdPorIdLocal(idLocalElim);
+            if (serverIdElim != null) {
+                serverIdsConEliminacionPendiente.add(serverIdElim);
+                elimLocalAServer.put(idLocalElim, serverIdElim);
+            }
+        }
+
+        // Limpieza de eliminaciones huérfanas: si una eliminación pendiente
+        // local apunta a un server_id que el server sigue devolviendo activo,
+        // significa que el server nunca aplicó esa eliminación (caso típico
+        // tras restauración manual). La limpiamos para que el paciente no
+        // quede oculto localmente para siempre.
+        for (java.util.Map.Entry<Integer, Integer> e : elimLocalAServer.entrySet()) {
+            int idLocal = e.getKey();
+            int serverId = e.getValue();
+            if (idsEnServer.contains(serverId)) {
+                eliminarEliminacionPendiente(idLocal);
+                serverIdsConEliminacionPendiente.remove(serverId);
+                Log.d("PacienteDataManager",
+                        "Limpiando eliminación pendiente huérfana _id=" + idLocal
+                                + " server_id=" + serverId
+                                + " (servidor lo devolvió activo, no se borró)");
+            }
+        }
 
         database.beginTransaction();
         try {
-            database.delete(PacienteDBHelper.TABLE_PACIENTES, null, null);
-
             for (int i = 0; i < pacientes.length(); i++) {
                 JSONObject p = pacientes.getJSONObject(i);
-                int id = p.getInt("id");
+                int serverId = p.getInt("id");
 
-                if (eliminacionesPendientes.contains(id)) {
-                    Log.d("PacienteDataManager", "Saltando paciente " + id + " — eliminación pendiente");
+                // Si la tablet aún quiere borrar este paciente, no lo
+                // resucitamos antes de que el admin confirme la eliminación.
+                // El bloque de limpieza de huérfanas ya quitó del set las
+                // eliminaciones para pacientes que el server devuelve
+                // activos, así que en este punto solo quedan las que
+                // realmente debemos respetar (sería raro: el server tendría
+                // soft-deleted al paciente y la app aún espera confirmación).
+                if (serverIdsConEliminacionPendiente.contains(serverId)) {
+                    Log.d("PacienteDataManager",
+                            "Saltando paciente server_id=" + serverId + " — eliminación pendiente");
                     continue;
                 }
 
                 ContentValues values = new ContentValues();
-                values.put(PacienteDBHelper.COLUMN_ID, id);
-                values.put(PacienteDBHelper.COLUMN_CIC, p.optString("cic"));
-                values.put(PacienteDBHelper.COLUMN_DNI, p.optString("dni"));
-                values.put(PacienteDBHelper.COLUMN_NOMBRE, p.optString("nombre"));
-                values.put(PacienteDBHelper.COLUMN_APELLIDO1, p.optString("apellido1"));
-                values.put(PacienteDBHelper.COLUMN_APELLIDO2, p.optString("apellido2"));
+                values.put(PacienteDBHelper.COLUMN_SERVER_ID, serverId);
+                // OJO: JSONObject.optString devuelve la cadena literal "null"
+                // (4 caracteres) cuando el value es JSONObject.NULL en lugar de
+                // null real. Por eso usamos isNull() defensivamente para
+                // todos los strings que el servidor puede devolver como null.
+                values.put(PacienteDBHelper.COLUMN_CIC,        p.isNull("cic")        ? null : p.optString("cic"));
+                values.put(PacienteDBHelper.COLUMN_DNI,        p.isNull("dni")        ? null : p.optString("dni"));
+                values.put(PacienteDBHelper.COLUMN_NOMBRE,     p.isNull("nombre")     ? null : p.optString("nombre"));
+                values.put(PacienteDBHelper.COLUMN_APELLIDO1,  p.isNull("apellido1")  ? null : p.optString("apellido1"));
+                values.put(PacienteDBHelper.COLUMN_APELLIDO2,  p.isNull("apellido2")  ? null : p.optString("apellido2"));
                 values.put(PacienteDBHelper.COLUMN_EDAD, p.optInt("edad"));
-                values.put(PacienteDBHelper.COLUMN_GENERO, p.optString("genero"));
-                values.put(PacienteDBHelper.COLUMN_PATOLOGIA, p.optString("patologia"));
-                values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, p.optString("medicacion"));
+                values.put(PacienteDBHelper.COLUMN_GENERO,     p.isNull("genero")     ? null : p.optString("genero"));
+                values.put(PacienteDBHelper.COLUMN_PATOLOGIA,  p.isNull("patologia")  ? null : p.optString("patologia"));
+                values.put(PacienteDBHelper.COLUMN_MEDICACIÓN, p.isNull("medicacion") ? null : p.optString("medicacion"));
                 values.put(PacienteDBHelper.COLUMN_INTENSIDAD, p.optInt("intensidad"));
                 values.put(PacienteDBHelper.COLUMN_TIEMPO, p.optInt("tiempo"));
                 values.put(PacienteDBHelper.COLUMN_INTENSIDAD2, p.optInt("intensidad2"));
                 values.put(PacienteDBHelper.COLUMN_TIEMPO2, p.optInt("tiempo2"));
-                // Timestamp del servidor: NULL si el paciente todavía no lo tiene
-                // (ej. instalación de servidor anterior a Fase 4). Sin valor =>
-                // last-write-wins en el próximo sync.
                 values.put(PacienteDBHelper.COLUMN_FECHA_ACTUALIZACION,
-                        p.optString("fechaActualizacion", null));
-                database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
+                        p.isNull("fechaActualizacion") ? null : p.optString("fechaActualizacion"));
+
+                int filasActualizadas = database.update(
+                        PacienteDBHelper.TABLE_PACIENTES,
+                        values,
+                        PacienteDBHelper.COLUMN_SERVER_ID + " = ?",
+                        new String[]{String.valueOf(serverId)});
+
+                if (filasActualizadas == 0) {
+                    // No había fila local con ese server_id → INSERT nuevo.
+                    // SQLite asigna _id autoincrement, server_id queda con
+                    // el valor que ya pusimos en `values`.
+                    database.insert(PacienteDBHelper.TABLE_PACIENTES, null, values);
+                }
             }
+
+            // Soft-delete local: pacientes con server_id NOT NULL que YA NO
+            // están en la lista del servidor (porque el server los borró).
+            // No tocamos los server_id IS NULL: son creaciones offline
+            // pendientes de subir, deben permanecer hasta el próximo sync.
+            if (!idsEnServer.isEmpty()) {
+                StringBuilder placeholders = new StringBuilder();
+                String[] args = new String[idsEnServer.size()];
+                int k = 0;
+                for (Integer id : idsEnServer) {
+                    if (k > 0) placeholders.append(",");
+                    placeholders.append("?");
+                    args[k++] = String.valueOf(id);
+                }
+                int borrados = database.delete(
+                        PacienteDBHelper.TABLE_PACIENTES,
+                        PacienteDBHelper.COLUMN_SERVER_ID + " IS NOT NULL AND " +
+                                PacienteDBHelper.COLUMN_SERVER_ID + " NOT IN (" + placeholders + ")",
+                        args);
+                if (borrados > 0) {
+                    Log.d("PacienteDataManager",
+                            "Soft-delete propagado: " + borrados + " pacientes locales eliminados (no estaban en servidor)");
+                }
+            }
+
             database.setTransactionSuccessful();
         } finally {
             database.endTransaction();

@@ -21,7 +21,14 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     //    v6 → v7: columnas fecha_actualizacion (en pacientes) y
     //    fecha_actualizacion_local (en backup_pendiente) para detección de
     //    conflictos por timestamp en /api/sincronizar (Fase 4 de la web).
-    private static final int DATABASE_VERSION = 7;
+    //    v7 → v8: columna server_id en pacientes, separada del PK
+    //    autoincrement local. Distingue el id que SQLite asigna en la
+    //    tablet del id real del paciente en MariaDB. Sin esta separación
+    //    dos creaciones simultáneas (web + Android) acabarían chocando
+    //    sus ids al sincronizar y aparecerían duplicados o pacientes
+    //    "perdidos" en la lista. Filas existentes en v7 se migran
+    //    asumiendo _id == server_id (cierto antes del refactor).
+    private static final int DATABASE_VERSION = 8;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -44,6 +51,12 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     // Última fecha de modificación que el servidor reportó para este paciente.
     // Se usa como base para detectar conflictos al sincronizar (ver Fase 4).
     public static final String COLUMN_FECHA_ACTUALIZACION = "fecha_actualizacion";
+    // Id que el servidor asigna al paciente en MariaDB. NULL mientras el
+    // paciente está creado solo en la tablet (offline) y no se ha
+    // sincronizado todavía. Se rellena con la respuesta del primer sync
+    // exitoso. Es la clave que viaja al servidor; el COLUMN_ID local solo
+    // se usa internamente para joins de SQLite.
+    public static final String COLUMN_SERVER_ID = "server_id";
 
     // Tabla USUARIOS
     public static final String TABLE_USUARIOS = "usuarios";
@@ -112,10 +125,15 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String TABLE_ELIMINACIONES_PENDIENTES = "eliminaciones_pendientes";
     public static final String COLUMN_EP_PACIENTE_ID = "paciente_id";
 
-    // Sentencia SQL para crear la tabla
+    // Sentencia SQL para crear la tabla.
+    // server_id es UNIQUE para evitar dos filas locales con el mismo id
+    // de servidor; en SQLite un UNIQUE permite múltiples NULL, por lo que
+    // los pacientes creados offline (todavía sin sincronizar) conviven sin
+    // problema mientras todos tienen server_id = NULL.
     private static final String SQL_CREATE_PACIENTES =
             "CREATE TABLE " + TABLE_PACIENTES + " (" +
                     COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    COLUMN_SERVER_ID + " INTEGER UNIQUE, " +
                     COLUMN_CIC + " TEXT, " +
                     COLUMN_DNI + " TEXT NOT NULL, " +
                     COLUMN_NOMBRE + " TEXT NOT NULL, " +
@@ -360,6 +378,34 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             Log.d("PacienteDBHelper", "Columna fecha_actualizacion_local añadida a backup_pendiente");
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error al añadir fecha_actualizacion_local: " + e.getMessage());
+        }
+    }
+    if (oldVersion < 8) {
+        // Migración v7 → v8: separar id local de id servidor.
+        //   1. ALTER TABLE para añadir server_id (sin UNIQUE inline porque
+        //      SQLite no lo permite en ALTER ADD COLUMN).
+        //   2. CREATE UNIQUE INDEX para garantizar que cada id de servidor
+        //      aparece a lo sumo una vez en local. SQLite permite múltiples
+        //      NULL en un índice UNIQUE, así que pacientes creados offline
+        //      conviven con server_id = NULL sin chocar.
+        //   3. Poblar server_id en filas existentes con el _id local. Antes
+        //      del refactor el _id de cada paciente venía del servidor en
+        //      las descargas, así que la equivalencia era cierta de hecho.
+        //      Si tras la migración hay un paciente que en realidad nunca
+        //      llegó al servidor (creado offline), el siguiente sync lo
+        //      detectará por dni_duplicado o paciente_no_encontrado y se
+        //      reconciliará.
+        try {
+            db.execSQL("ALTER TABLE " + TABLE_PACIENTES +
+                    " ADD COLUMN " + COLUMN_SERVER_ID + " INTEGER");
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_pacientes_server_id ON " +
+                    TABLE_PACIENTES + "(" + COLUMN_SERVER_ID + ")");
+            db.execSQL("UPDATE " + TABLE_PACIENTES +
+                    " SET " + COLUMN_SERVER_ID + " = " + COLUMN_ID +
+                    " WHERE " + COLUMN_SERVER_ID + " IS NULL");
+            Log.d("PacienteDBHelper", "Columna server_id añadida y poblada en pacientes");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error en migración v7→v8: " + e.getMessage());
         }
     }
 }
