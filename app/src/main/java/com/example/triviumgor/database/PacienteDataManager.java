@@ -1548,6 +1548,26 @@ public class PacienteDataManager {
                 }
             }
 
+            // Limpieza defensiva de sesiones huerfanas: filas en TABLE_SESIONES
+            // cuyo paciente_id ya no apunta a ningun paciente local.
+            // En el flujo normal guardarSesionesDesdeServidor borra todas las
+            // sesiones y reinserta las del servidor, asi que esto solo actua
+            // si el sync se interrumpe entre paso 1 (pacientes) y paso 2
+            // (sesiones). Es defensa en profundidad. No usamos ON DELETE
+            // CASCADE porque la FK existe pero el pragma foreign_keys nunca
+            // se activa en este proyecto (SQLite las desactiva por defecto),
+            // asi que no se enforza. Atomico via la transaccion abierta.
+            int huerfanas = database.delete(
+                    PacienteDBHelper.TABLE_SESIONES,
+                    PacienteDBHelper.COLUMN_PACIENTE_ID + " NOT IN " +
+                            "(SELECT " + PacienteDBHelper.COLUMN_ID +
+                            " FROM " + PacienteDBHelper.TABLE_PACIENTES + ")",
+                    null);
+            if (huerfanas > 0) {
+                Log.d("PacienteDataManager",
+                        "Sesiones huerfanas limpiadas: " + huerfanas);
+            }
+
             database.setTransactionSuccessful();
         } finally {
             database.endTransaction();
