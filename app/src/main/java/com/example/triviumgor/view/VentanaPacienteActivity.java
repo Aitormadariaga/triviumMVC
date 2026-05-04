@@ -267,9 +267,9 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         int selectedId = radioGroupGenero.getCheckedRadioButtonId();
 
         if (selectedId == R.id.radioMasculino) {
-            genero = "MASCULINO";
+            genero = "masculino";
         } else if (selectedId == R.id.radioFemenino) {
-            genero = "FEMENINO";
+            genero = "femenino";
         }
 
         PacienteController.Resultado resultado;

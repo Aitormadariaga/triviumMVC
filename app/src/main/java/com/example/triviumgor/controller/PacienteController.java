@@ -461,7 +461,7 @@ public class PacienteController {
                     datosPaciente.put("apellido1",   p.getAp1());
                     datosPaciente.put("apellido2",   p.getAp2() != null ? p.getAp2() : "");
                     datosPaciente.put("edad",        p.getEdad());
-                    datosPaciente.put("genero",      p.getGenero() != null ? p.getGenero().name() : "");
+                    datosPaciente.put("genero",      p.getGenero() != null ? p.getGenero().name().toLowerCase(java.util.Locale.ROOT) : "");
                     datosPaciente.put("patologia",   p.getPatologia());
                     datosPaciente.put("medicacion",  p.getMedicacion());
                     datosPaciente.put("intensidad",  p.getIntensidad());
