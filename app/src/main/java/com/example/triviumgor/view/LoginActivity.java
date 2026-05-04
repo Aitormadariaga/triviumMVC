@@ -233,6 +233,10 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void navigateToMain() {
+        // Permitir que un futuro 401 vuelva a disparar auto-logout. Cubre
+        // tanto el login online como el offline.
+        ApiClient.logoutEnCurso.set(false);
+
         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
         startActivity(intent);
         finish();

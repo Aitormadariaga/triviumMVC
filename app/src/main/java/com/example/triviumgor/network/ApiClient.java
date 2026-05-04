@@ -1,29 +1,42 @@
 package com.example.triviumgor.network;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.example.triviumgor.view.LoginActivity;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class ApiClient {
     private static final String BASE_URL = "http://localhost:8000";
     private static final String PREFS_NAME = "LoginPrefs";
 
+    // Idempotencia: si varios requests responden 401 a la vez, solo uno
+    // dispara el flujo de logout. Lo resetea LoginActivity tras login OK.
+    public static final AtomicBoolean logoutEnCurso = new AtomicBoolean(false);
+
+    private final Context appContext;
     private final RequestQueue queue;
     private final SharedPreferences prefs;
 
     public ApiClient(Context context) {
-        this.queue = Volley.newRequestQueue(context);
-        this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        this.appContext = context.getApplicationContext();
+        this.queue = Volley.newRequestQueue(this.appContext);
+        this.prefs = this.appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
     // ============================================
@@ -239,7 +252,7 @@ public class ApiClient {
         JsonObjectRequest request = new JsonObjectRequest(
                 Request.Method.GET, url, null,
                 response -> callback.onSuccess(response),
-                error -> callback.onError(parsearError(error))
+                error -> callback.onError(parsearError(error, true))
         ) {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
@@ -257,7 +270,7 @@ public class ApiClient {
         JsonObjectRequest request = new JsonObjectRequest(
                 Request.Method.POST, url, body,
                 response -> callback.onSuccess(response),
-                error -> callback.onError(parsearError(error))
+                error -> callback.onError(parsearError(error, conToken))
         ) {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
@@ -277,7 +290,7 @@ public class ApiClient {
         JsonObjectRequest request = new JsonObjectRequest(
                 Request.Method.PUT, url, body,
                 response -> callback.onSuccess(response),
-                error -> callback.onError(parsearError(error))
+                error -> callback.onError(parsearError(error, true))
         ) {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
@@ -290,19 +303,59 @@ public class ApiClient {
 
     // ============================================
     // Parsear errores HTTP
+    // conToken=true significa endpoint autenticado:
+    // un 401 ahi indica token expirado/invalido y dispara auto-logout.
+    // conToken=false (login/registro): un 401 son credenciales malas.
     // ============================================
-    private String parsearError(com.android.volley.VolleyError error) {
+    private String parsearError(com.android.volley.VolleyError error, boolean conToken) {
+        // Si el logout ya esta en curso, los requests cancelados llegan aqui
+        // con networkResponse=null. Devolvemos el mismo mensaje en lugar de
+        // "Sin conexion" para no confundir tras el toast de sesion caducada.
+        if (logoutEnCurso.get() && error.networkResponse == null) {
+            return "Sesión caducada, inicia sesión de nuevo";
+        }
         if (error.networkResponse == null) {
             return "Sin conexión al servidor";
         }
-        switch (error.networkResponse.statusCode) {
+        int code = error.networkResponse.statusCode;
+        if (code == 401) {
+            if (conToken) {
+                forzarLogoutPorTokenExpirado();
+                return "Sesión caducada, inicia sesión de nuevo";
+            }
+            return "Usuario o contraseña incorrectos";
+        }
+        switch (code) {
             case 400: return "Datos incorrectos";
-            case 401: return "Sesión expirada, vuelve a iniciar sesión";
             case 404: return "Recurso no encontrado";
             case 409: return "El usuario ya existe";
             case 500: return "Error en el servidor";
-            default:  return "Error " + error.networkResponse.statusCode;
+            default:  return "Error " + code;
         }
+    }
+
+    // Limpia la sesion local y redirige a LoginActivity. Se llama
+    // cuando un endpoint autenticado responde 401 (token expirado o
+    // invalido). Idempotente via logoutEnCurso para que multiples 401
+    // simultaneos no disparen N veces.
+    private void forzarLogoutPorTokenExpirado() {
+        if (!logoutEnCurso.compareAndSet(false, true)) {
+            return;
+        }
+
+        // Cancelar cualquier request en vuelo para no encadenar 401s.
+        queue.cancelAll(req -> true);
+
+        prefs.edit().clear().apply();
+
+        new Handler(Looper.getMainLooper()).post(() ->
+                Toast.makeText(appContext,
+                        "Sesión caducada, inicia sesión de nuevo",
+                        Toast.LENGTH_LONG).show());
+
+        Intent intent = new Intent(appContext, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        appContext.startActivity(intent);
     }
 
     // ============================================
