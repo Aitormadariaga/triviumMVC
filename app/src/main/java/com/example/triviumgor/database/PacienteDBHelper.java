@@ -28,7 +28,14 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     //    sus ids al sincronizar y aparecerían duplicados o pacientes
     //    "perdidos" en la lista. Filas existentes en v7 se migran
     //    asumiendo _id == server_id (cierto antes del refactor).
-    private static final int DATABASE_VERSION = 8;
+    //    v8 → v9: indice unico parcial en backup_pendiente(paciente_id)
+    //    para filas eliminar=0. Garantiza que solo hay 1 cambio pendiente
+    //    de tipo "edicion" por paciente; impide los conflictos artificiales
+    //    que se generaban cuando el medico editaba N veces offline (cada
+    //    INSERT creaba fila nueva, las N-1 ultimas viajaban con
+    //    fechaActualizacionLocal viejo y el server las marcaba conflicto).
+    //    Las filas eliminar=1 pueden coexistir (caso raro: borrado pendiente).
+    private static final int DATABASE_VERSION = 9;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -267,6 +274,12 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_USUARIO_PACIENTE);
         db.execSQL(SQL_CREATE_USUARIO_SESION);
         db.execSQL(SQL_CREATE_BACKUP_PENDIENTE);
+        // Indice unico parcial: como mucho 1 cambio pendiente con eliminar=0
+        // por paciente (impide los conflictos artificiales por N ediciones
+        // offline encadenadas). Las filas eliminar=1 conviven libremente.
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_backup_pendiente_paciente_unico ON " +
+                TABLE_BACKUP_PENDIENTE + "(" + COLUMN_BP_PACIENTE_ID + ") " +
+                "WHERE " + COLUMN_BP_ELIMINAR + " = 0");
         db.execSQL(SQL_CREATE_ELIMINACIONES_PENDIENTES);
 
         // Insertar usuario administrador por defecto
@@ -394,6 +407,43 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             Log.d("PacienteDBHelper", "Columna server_id añadida y poblada en pacientes");
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error en migración v7→v8: " + e.getMessage());
+        }
+    }
+    if (oldVersion < 9) {
+        // Migración v8 → v9: dedup de cambios pendientes.
+        //   1. Limpiar duplicados eliminar=0 que se hayan acumulado en v8 o
+        //      anteriores. Conservamos la fila con _id MAX por paciente
+        //      (datos mas recientes). El campo fecha_actualizacion_local
+        //      ya estaba propagado igual en todas las filas duplicadas via
+        //      resolverFechaActualizacionLocal, asi que MAX no pierde
+        //      timestamp del primer toque.
+        //   2. Crear unique index parcial para impedir nuevos duplicados.
+        //      A partir de aqui guardarCambioPendiente hace UPSERT.
+        // Todo en una transaccion para que sea atomico (begin ya lo abre
+        // SQLiteOpenHelper alrededor de onUpgrade, no hace falta uno propio).
+        try {
+            int borrados = db.delete(
+                    TABLE_BACKUP_PENDIENTE,
+                    COLUMN_BP_ELIMINAR + " = 0 AND " + COLUMN_BP_ID + " NOT IN " +
+                            "(SELECT MAX(" + COLUMN_BP_ID + ") FROM " + TABLE_BACKUP_PENDIENTE +
+                            " WHERE " + COLUMN_BP_ELIMINAR + " = 0 GROUP BY " + COLUMN_BP_PACIENTE_ID + ")",
+                    null);
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_backup_pendiente_paciente_unico ON " +
+                    TABLE_BACKUP_PENDIENTE + "(" + COLUMN_BP_PACIENTE_ID + ") " +
+                    "WHERE " + COLUMN_BP_ELIMINAR + " = 0");
+            Log.d("PacienteDBHelper",
+                    "Migracion v8->v9: duplicados borrados=" + borrados +
+                            " e indice unico parcial creado en backup_pendiente");
+        } catch (Exception e) {
+            // Re-lanzamos para que SQLiteOpenHelper aborte y reintente al
+            // siguiente arranque. Si tragamos el error la version avanzaria a
+            // 9 sin indice, dejando la BD en estado inconsistente: futuros
+            // INSERTs de guardarCambioPendiente cumplirian o no la unicidad
+            // dependiendo de si por suerte no hubiera ya filas con el mismo
+            // paciente, lo cual haria el bug intermitente y muy dificil de
+            // reproducir. Mejor fallar limpio.
+            Log.e("PacienteDBHelper", "Error en migración v8→v9", e);
+            throw new RuntimeException("Migración v8→v9 fallida", e);
         }
     }
 }

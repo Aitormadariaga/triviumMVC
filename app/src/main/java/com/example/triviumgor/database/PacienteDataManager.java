@@ -920,64 +920,133 @@ public class PacienteDataManager {
      * Guarda en backup_pendiente un snapshot del paciente recién creado,
      * editado o marcado para eliminar. El SincronizacionManager lo enviará
      * al servidor en el próximo push.
+     *
+     * Semantica UPSERT (desde schema v9, indice unico parcial sobre
+     * paciente_id WHERE eliminar=0):
+     * - eliminar=true: borra cualquier fila pendiente eliminar=0 del mismo
+     *   paciente (ya no importa lo que se haya editado, vamos a borrar) y
+     *   hace INSERT con eliminar=1.
+     * - eliminar=false: si ya hay una fila pendiente eliminar=0 para ese
+     *   paciente, hace UPDATE solo de los campos de datos preservando
+     *   COLUMN_BP_FECHA (timestamp del primer toque offline) y
+     *   COLUMN_BP_FECHA_ACTUALIZACION_LOCAL (snapshot del primer toque).
+     *   Si no hay fila previa, INSERT.
      */
     public void guardarCambioPendiente(int pacienteId, boolean eliminar,
                                        JSONObject datosPaciente) {
         try {
-            ContentValues values = new ContentValues();
-            values.put(PacienteDBHelper.COLUMN_BP_PACIENTE_ID, pacienteId);
-            values.put(PacienteDBHelper.COLUMN_BP_ELIMINAR, eliminar ? 1 : 0);
-            values.put(PacienteDBHelper.COLUMN_BP_FECHA,
-                    new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",
-                            Locale.getDefault()).format(new Date()));
+            ContentValues camposDatos = construirCamposDatosBackup(datosPaciente);
 
-            if (datosPaciente != null) {
-                values.put(PacienteDBHelper.COLUMN_BP_CIC,
-                        datosPaciente.optString("cic", null));
-                values.put(PacienteDBHelper.COLUMN_BP_DNI,
-                        datosPaciente.optString("dni", null));
-                values.put(PacienteDBHelper.COLUMN_BP_NOMBRE,
-                        datosPaciente.optString("nombre", null));
-                values.put(PacienteDBHelper.COLUMN_BP_APELLIDO1,
-                        datosPaciente.optString("apellido1", null));
-                values.put(PacienteDBHelper.COLUMN_BP_APELLIDO2,
-                        datosPaciente.optString("apellido2", null));
-                values.put(PacienteDBHelper.COLUMN_BP_EDAD,
-                        datosPaciente.optInt("edad", 0));
-                values.put(PacienteDBHelper.COLUMN_BP_GENERO,
-                        datosPaciente.optString("genero", null));
-                values.put(PacienteDBHelper.COLUMN_BP_PATOLOGIA,
-                        datosPaciente.optString("patologia", null));
-                values.put(PacienteDBHelper.COLUMN_BP_MEDICACION,
-                        datosPaciente.optString("medicacion", null));
-                values.put(PacienteDBHelper.COLUMN_BP_INTENSIDAD,
-                        datosPaciente.optInt("intensidad", 0));
-                values.put(PacienteDBHelper.COLUMN_BP_TIEMPO,
-                        datosPaciente.optInt("tiempo", 0));
-                values.put(PacienteDBHelper.COLUMN_BP_INTENSIDAD2,
-                        datosPaciente.optInt("intensidad2", 0));
-                values.put(PacienteDBHelper.COLUMN_BP_TIEMPO2,
-                        datosPaciente.optInt("tiempo2", 0));
+            if (eliminar) {
+                // Limpiamos cualquier cambio pendiente del mismo paciente
+                // (tanto ediciones eliminar=0 como borrados eliminar=1
+                // anteriores): si vamos a borrar el paciente, lo previo ya
+                // no aporta al servidor y dos borrados consecutivos generan
+                // dos pushes idempotentes redundantes.
+                database.delete(
+                        PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
+                        PacienteDBHelper.COLUMN_BP_PACIENTE_ID + " = ?",
+                        new String[]{String.valueOf(pacienteId)});
+
+                ContentValues nuevo = new ContentValues(camposDatos);
+                nuevo.put(PacienteDBHelper.COLUMN_BP_PACIENTE_ID, pacienteId);
+                nuevo.put(PacienteDBHelper.COLUMN_BP_ELIMINAR, 1);
+                nuevo.put(PacienteDBHelper.COLUMN_BP_FECHA, ahora());
+                String fechaActualizacionLocal = resolverFechaActualizacionLocal(pacienteId);
+                if (fechaActualizacionLocal != null) {
+                    nuevo.put(PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL,
+                            fechaActualizacionLocal);
+                }
+                database.insert(PacienteDBHelper.TABLE_BACKUP_PENDIENTE, null, nuevo);
+                Log.d("PacienteDataManager",
+                        "Cambio pendiente (eliminar) guardado para paciente " + pacienteId);
+                return;
             }
 
-            // Fotografía del fecha_actualizacion para detección de conflictos:
-            // si ya hay otro backup_pendiente para el mismo paciente con un
-            // valor preservado, lo reutilizamos para mantener el timestamp
-            // ORIGINAL (el del primer toque offline). Si no, lo leemos de la
-            // tabla pacientes. Puede ser null para pacientes sin sincronizar
-            // o legacy → el servidor cae a last-write-wins.
+            // eliminar=false: UPSERT.
+            int filasActualizadas = database.update(
+                    PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
+                    camposDatos,
+                    PacienteDBHelper.COLUMN_BP_PACIENTE_ID + " = ? AND " +
+                            PacienteDBHelper.COLUMN_BP_ELIMINAR + " = 0",
+                    new String[]{String.valueOf(pacienteId)});
+
+            if (filasActualizadas > 0) {
+                Log.d("PacienteDataManager",
+                        "Cambio pendiente refundido (UPDATE) para paciente " + pacienteId);
+                return;
+            }
+
+            // No hay fila eliminar=0 para este paciente: insertamos una nueva.
+            // Puede haber filas eliminar=1 pendientes (caso raro: borrado
+            // pendiente + reedicion), conviven gracias al indice parcial.
+            ContentValues nuevo = new ContentValues(camposDatos);
+            nuevo.put(PacienteDBHelper.COLUMN_BP_PACIENTE_ID, pacienteId);
+            nuevo.put(PacienteDBHelper.COLUMN_BP_ELIMINAR, 0);
+            nuevo.put(PacienteDBHelper.COLUMN_BP_FECHA, ahora());
             String fechaActualizacionLocal = resolverFechaActualizacionLocal(pacienteId);
             if (fechaActualizacionLocal != null) {
-                values.put(PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL,
+                nuevo.put(PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL,
                         fechaActualizacionLocal);
             }
+            database.insert(PacienteDBHelper.TABLE_BACKUP_PENDIENTE, null, nuevo);
+            Log.d("PacienteDataManager",
+                    "Cambio pendiente (INSERT) guardado para paciente " + pacienteId);
 
-            database.insert(PacienteDBHelper.TABLE_BACKUP_PENDIENTE, null, values);
-            Log.d("PacienteDataManager", "Cambio pendiente guardado para paciente " + pacienteId);
-
+        } catch (android.database.sqlite.SQLiteConstraintException e) {
+            // El unique index parcial impide otra fila eliminar=0 para el
+            // mismo paciente: si llegamos aqui es bug en la logica UPSERT
+            // (race condition o caller saltandose este metodo).
+            Log.e("PacienteDataManager",
+                    "UNIQUE constraint en backup_pendiente para paciente " + pacienteId +
+                            " — bug en logica UPSERT", e);
         } catch (Exception e) {
             Log.e("PacienteDataManager", "Error al guardar cambio pendiente: " + e.getMessage());
         }
+    }
+
+    private String ahora() {
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",
+                Locale.getDefault()).format(new Date());
+    }
+
+    /**
+     * Construye los ContentValues con los campos de datos del paciente
+     * (cic, dni, nombre, etc) sin los metadatos del cambio pendiente
+     * (paciente_id, eliminar, fecha, fecha_actualizacion_local). Reutilizable
+     * tanto para INSERT como para UPDATE en guardarCambioPendiente.
+     */
+    private ContentValues construirCamposDatosBackup(JSONObject datosPaciente) {
+        ContentValues values = new ContentValues();
+        if (datosPaciente == null) return values;
+
+        values.put(PacienteDBHelper.COLUMN_BP_CIC,
+                datosPaciente.optString("cic", null));
+        values.put(PacienteDBHelper.COLUMN_BP_DNI,
+                datosPaciente.optString("dni", null));
+        values.put(PacienteDBHelper.COLUMN_BP_NOMBRE,
+                datosPaciente.optString("nombre", null));
+        values.put(PacienteDBHelper.COLUMN_BP_APELLIDO1,
+                datosPaciente.optString("apellido1", null));
+        values.put(PacienteDBHelper.COLUMN_BP_APELLIDO2,
+                datosPaciente.optString("apellido2", null));
+        values.put(PacienteDBHelper.COLUMN_BP_EDAD,
+                datosPaciente.optInt("edad", 0));
+        values.put(PacienteDBHelper.COLUMN_BP_GENERO,
+                datosPaciente.optString("genero", null));
+        values.put(PacienteDBHelper.COLUMN_BP_PATOLOGIA,
+                datosPaciente.optString("patologia", null));
+        values.put(PacienteDBHelper.COLUMN_BP_MEDICACION,
+                datosPaciente.optString("medicacion", null));
+        values.put(PacienteDBHelper.COLUMN_BP_INTENSIDAD,
+                datosPaciente.optInt("intensidad", 0));
+        values.put(PacienteDBHelper.COLUMN_BP_TIEMPO,
+                datosPaciente.optInt("tiempo", 0));
+        values.put(PacienteDBHelper.COLUMN_BP_INTENSIDAD2,
+                datosPaciente.optInt("intensidad2", 0));
+        values.put(PacienteDBHelper.COLUMN_BP_TIEMPO2,
+                datosPaciente.optInt("tiempo2", 0));
+        return values;
     }
 
     /**
@@ -1157,10 +1226,14 @@ public class PacienteDataManager {
     private String resolverFechaActualizacionLocal(int pacienteId) {
         Cursor cursor = null;
         try {
+            // Filtramos eliminar=0 para no leer la fecha de un DELETE pendiente
+            // ya aplicado: solo nos interesa el snapshot del primer toque de
+            // edicion offline (rama eliminar=0 del bug original).
             cursor = database.query(
                     PacienteDBHelper.TABLE_BACKUP_PENDIENTE,
                     new String[]{PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL},
                     PacienteDBHelper.COLUMN_BP_PACIENTE_ID + " = ? AND " +
+                            PacienteDBHelper.COLUMN_BP_ELIMINAR + " = 0 AND " +
                             PacienteDBHelper.COLUMN_BP_FECHA_ACTUALIZACION_LOCAL + " IS NOT NULL",
                     new String[]{String.valueOf(pacienteId)},
                     null, null,
