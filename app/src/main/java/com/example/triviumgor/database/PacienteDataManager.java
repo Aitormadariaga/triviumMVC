@@ -6,7 +6,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
+import net.zetetic.database.sqlcipher.SQLiteDatabase;
 import android.util.Log;
 
 import com.example.triviumgor.model.Sesion;
@@ -24,15 +24,30 @@ import java.util.Locale;
 
 public class PacienteDataManager {
     private SQLiteDatabase database;
-    private final PacienteDBHelper dbHelper;
+    private PacienteDBHelper dbHelper;
+    private Context context;
 
     public PacienteDataManager(Context context) {
-        dbHelper = new PacienteDBHelper(context);
+        //dbHelper = new PacienteDBHelper(context);
+        this.context = context;
+
     }
 
     public boolean open() {
         try {
-            database = dbHelper.getWritableDatabase();
+            char[] charPass = DBKeyManager.getInstance(context).getPassphrase();
+            // SQLCipher 4.x acepta byte[] — convertimos UTF-8.
+            byte[] passphrase = new String(charPass).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            java.util.Arrays.fill(charPass, '\0');
+
+            // El helper se construye CON la passphrase. Si ya estaba creado de
+            // un open() previo, lo reusamos (su super ya tiene la pass).
+            if (dbHelper == null) {
+                dbHelper = new PacienteDBHelper(context, passphrase);
+            }
+            database = dbHelper.getWritableDatabase();   // SIN argumentos
+
+            java.util.Arrays.fill(passphrase, (byte) 0);
             return true;
         } catch (SQLException e) {
             Log.e("ERROR", "Error SQL al abrir la base de datos: " + e.getMessage());

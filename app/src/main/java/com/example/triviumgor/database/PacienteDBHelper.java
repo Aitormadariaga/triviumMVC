@@ -2,8 +2,8 @@ package com.example.triviumgor.database;
 
 import android.content.ContentValues;
 import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
+import net.zetetic.database.sqlcipher.SQLiteDatabase; // NUEVO
+import net.zetetic.database.sqlcipher.SQLiteOpenHelper; // NUEVO
 import android.os.Environment;
 import android.util.Log;
 
@@ -31,6 +31,10 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     private static final int DATABASE_VERSION = 8;
     private static String DATABASE_PATH;
     private final Context mContext;
+
+    static {
+        System.loadLibrary("sqlcipher");
+    }
 
     // Nombre de tabla y columnas (mantén tus definiciones existentes)
     public static final String TABLE_PACIENTES = "pacientes";
@@ -225,38 +229,22 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     COLUMN_EP_PACIENTE_ID + " INTEGER PRIMARY KEY)";
 
     // Constructor modificado
-    public PacienteDBHelper(Context context) {
-        super(context, getDatabasePath(context), null, DATABASE_VERSION);
+    public PacienteDBHelper(Context context, byte[] passphrase) {
+        // El constructor "largo" de net.zetetic.database.sqlcipher.SQLiteOpenHelper:
+        //   (context, name, password, factory, version,
+        //    minimumSupportedVersion, errorHandler, databaseHook, enableWriteAheadLogging)
+        super(context, getDatabasePath(context), passphrase, null, DATABASE_VERSION,
+                0, null, null, false);
         mContext = context;
         DATABASE_PATH = getDatabasePath(context);
-
         checkExistingDatabase();
     }
 
     // Método para obtener la ruta de la base de datos en almacenamiento externo
     private static String getDatabasePath(Context context) {
-        // Verificar si el almacenamiento externo está disponible para lectura y escritura
-        String state = Environment.getExternalStorageState();
-        if (!Environment.MEDIA_MOUNTED.equals(state)) {
-            Log.e("PacienteDBHelper", "Almacenamiento externo no disponible");
-            // Fallback a almacenamiento interno si el externo no está disponible
-            return context.getDatabasePath(DATABASE_NAME).getPath();
-        }
-
-        // Crear directorio para la base de datos si no existe
-        File dbDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOCUMENTS), "TriviumData");
-
-        if (!dbDir.exists()) {
-            if (!dbDir.mkdirs()) {
-                Log.e("PacienteDBHelper", "No se pudo crear directorio para la base de datos");
-                // Fallback a almacenamiento interno si no se puede crear directorio
-                return context.getDatabasePath(DATABASE_NAME).getPath();
-            }
-        }
-
-        // Ruta completa al archivo de base de datos
-        return new File(dbDir, DATABASE_NAME).getAbsolutePath();
+        // BD en almacenamiento privado de la app. Solo accesible al proceso
+        // de la propia app; desinstalar la app la borra.
+        return context.getDatabasePath(DATABASE_NAME).getPath();
     }
 
     public void checkExistingDatabase() {

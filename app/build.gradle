@@ -8,13 +8,21 @@ android {
 
     defaultConfig {
         applicationId "com.example.triviumgor"
-        minSdk 19
+        minSdk 23           // antes 19
         targetSdk 34
         versionCode 1
         versionName "1.0"
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a'
+            universalApk false
+        }
     }
 
     buildTypes {
@@ -44,4 +52,10 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+
+    // BD cifrada
+    implementation 'net.zetetic:sqlcipher-android:4.5.4'
+    implementation 'androidx.sqlite:sqlite:2.3.1'
+    // Almacén seguro de la passphrase
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 }
