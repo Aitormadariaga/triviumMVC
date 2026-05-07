@@ -1649,22 +1649,79 @@ public class PacienteDataManager {
 
     /**
      * Descarga masiva de sesiones desde el servidor (reemplaza las locales).
+     *
+     * El servidor envía cada sesión con `pacienteId = server_id` del paciente
+     * (su clave en MariaDB). En la BD local la columna `paciente_id` referencia
+     * al `_id` LOCAL de la tabla pacientes (autoincrement de SQLite, distinto
+     * del server_id desde el refactor v7→v8). Sin traducción, las sesiones
+     * quedarian con FK rota y `obtenerSesionesPaciente(_idLocal)` nunca las
+     * encontraria — el historial del paciente apareceria vacio tras sync.
+     *
+     * Construimos primero un mapa server_id→_idLocal con una sola query a
+     * pacientes y lo aplicamos por sesion. Si una sesion del servidor llega
+     * sin paciente local conocido (caso raro: paciente borrado entre la
+     * descarga de pacientes y la de sesiones, o JSON malformado), se salta
+     * con warning para no abortar el resto de la descarga.
      */
     public void guardarSesionesDesdeServidor(JSONArray sesiones) throws Exception {
+        // Pre-cargamos el mapeo server_id → _idLocal de TODOS los pacientes
+        // locales para evitar N queries sql en el bucle.
+        java.util.Map<Integer, Integer> serverIdALocal = new java.util.HashMap<>();
+        Cursor cMapa = null;
+        try {
+            cMapa = database.query(
+                    PacienteDBHelper.TABLE_PACIENTES,
+                    new String[]{PacienteDBHelper.COLUMN_ID, PacienteDBHelper.COLUMN_SERVER_ID},
+                    PacienteDBHelper.COLUMN_SERVER_ID + " IS NOT NULL",
+                    null, null, null, null
+            );
+            if (cMapa != null && cMapa.moveToFirst()) {
+                int idxLocal  = cMapa.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_ID);
+                int idxServer = cMapa.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_SERVER_ID);
+                do {
+                    serverIdALocal.put(cMapa.getInt(idxServer), cMapa.getInt(idxLocal));
+                } while (cMapa.moveToNext());
+            }
+        } finally {
+            if (cMapa != null) cMapa.close();
+        }
+
         database.beginTransaction();
         try {
             database.delete(PacienteDBHelper.TABLE_SESIONES, null, null);
 
+            int saltadas = 0;
             for (int i = 0; i < sesiones.length(); i++) {
-                JSONObject s = sesiones.getJSONObject(i);
-                ContentValues values = new ContentValues();
-                values.put(PacienteDBHelper.COLUMN_SESION_ID, s.getInt("id"));
-                values.put(PacienteDBHelper.COLUMN_PACIENTE_ID, s.getInt("pacienteId"));
-                values.put(PacienteDBHelper.COLUMN_DISPOSITIVO, s.optString("dispositivo"));
-                values.put(PacienteDBHelper.COLUMN_FECHA, s.optString("fecha"));
-                values.put(PacienteDBHelper.COLUMN_INTENSIDAD_SESION, s.optInt("intensidad"));
-                values.put(PacienteDBHelper.COLUMN_TIEMPO_SESION, s.optInt("tiempo"));
-                database.insert(PacienteDBHelper.TABLE_SESIONES, null, values);
+                try {
+                    JSONObject s = sesiones.getJSONObject(i);
+                    int serverId = s.getInt("pacienteId");
+                    Integer idLocal = serverIdALocal.get(serverId);
+                    if (idLocal == null) {
+                        Log.w("PacienteDataManager",
+                                "Saltando sesion del server con pacienteId=" + serverId
+                                        + ": no hay paciente local con ese server_id");
+                        saltadas++;
+                        continue;
+                    }
+                    ContentValues values = new ContentValues();
+                    values.put(PacienteDBHelper.COLUMN_SESION_ID, s.getInt("id"));
+                    values.put(PacienteDBHelper.COLUMN_PACIENTE_ID, idLocal.intValue());
+                    values.put(PacienteDBHelper.COLUMN_DISPOSITIVO, s.optString("dispositivo"));
+                    values.put(PacienteDBHelper.COLUMN_FECHA, s.optString("fecha"));
+                    values.put(PacienteDBHelper.COLUMN_INTENSIDAD_SESION, s.optInt("intensidad"));
+                    values.put(PacienteDBHelper.COLUMN_TIEMPO_SESION, s.optInt("tiempo"));
+                    database.insert(PacienteDBHelper.TABLE_SESIONES, null, values);
+                } catch (Exception e) {
+                    // Una sesion malformada (JSON invalido, falta id, etc) NO debe
+                    // abortar toda la descarga: se loguea y se sigue.
+                    Log.w("PacienteDataManager",
+                            "Saltando sesion #" + i + " malformada: " + e.getMessage());
+                    saltadas++;
+                }
+            }
+            if (saltadas > 0) {
+                Log.d("PacienteDataManager",
+                        "guardarSesionesDesdeServidor: " + saltadas + " sesiones saltadas de " + sesiones.length());
             }
             database.setTransactionSuccessful();
         } finally {
