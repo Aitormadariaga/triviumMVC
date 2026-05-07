@@ -348,14 +348,26 @@ public class ApiClient {
 
         prefs.edit().clear().apply();
 
-        new Handler(Looper.getMainLooper()).post(() ->
-                Toast.makeText(appContext,
-                        "Sesión caducada, inicia sesión de nuevo",
-                        Toast.LENGTH_LONG).show());
-
-        Intent intent = new Intent(appContext, LoginActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        appContext.startActivity(intent);
+        // Toast Y startActivity dentro del mismo Handler.post para garantizar
+        // ejecucion en mainThread. Antes el startActivity quedaba fuera y, si
+        // el callback de Volley llegaba en un thread distinto al main (caso
+        // raro pero posible con cancelaciones / RetryPolicy), Android 10+
+        // bloqueaba silenciosamente el lanzamiento de la Activity desde
+        // Application context — el toast aparecia pero el redirect a Login
+        // nunca pasaba.
+        new Handler(Looper.getMainLooper()).post(() -> {
+            Toast.makeText(appContext,
+                    "Sesión caducada, inicia sesión de nuevo",
+                    Toast.LENGTH_LONG).show();
+            try {
+                Intent intent = new Intent(appContext, LoginActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                appContext.startActivity(intent);
+            } catch (Exception e) {
+                android.util.Log.e("ApiClient",
+                        "No se pudo lanzar LoginActivity tras 401", e);
+            }
+        });
     }
 
     // ============================================
