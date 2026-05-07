@@ -498,11 +498,14 @@ public class MainActivity extends AppCompatActivity
             int intensidad = Integer.parseInt(Param3.getText().toString());
             int duracion = Integer.parseInt(Param4.getText().toString());
 
-            // Registrar sesión si es nueva
-            if (dispositivo1.isClockStopped() && DNIpaciente != null && !DNIpaciente.isEmpty()) {
+            // Registrar sesión en cada toque del boton (Iniciar y Actualizar):
+            // cada cambio de intensidad/tiempo deja constancia en el historico
+            // del paciente con su propio timestamp. El servidor las trata como
+            // sesiones independientes (dedup por paciente+fecha+dispositivo,
+            // y la fecha cambia en cada llamada a registrarSesionEnDB).
+            if (DNIpaciente != null && !DNIpaciente.isEmpty()) {
                 registrarSesionEnDB(DNIpaciente, dispBluetoothNom1.getText().toString(),
                         intensidad, duracion);
-
             }
 
             boolean esNueva = tratamientoController.iniciarOActualizarSesion(
@@ -521,7 +524,8 @@ public class MainActivity extends AppCompatActivity
             int intensidad = Integer.parseInt(Param10.getText().toString());
             int duracion = Integer.parseInt(Param12.getText().toString());
 
-            if (dispositivo2.isClockStopped() && DNIpaciente2 != null && !DNIpaciente2.isEmpty()) {
+            // Registrar en cada toque (mismo motivo que dispositivo 1).
+            if (DNIpaciente2 != null && !DNIpaciente2.isEmpty()) {
                 registrarSesionEnDB(DNIpaciente2, dispBluetoothNom2.getText().toString(),
                         intensidad, duracion);
             }
