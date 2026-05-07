@@ -22,6 +22,7 @@ import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.controller.UsuarioController;
 import com.example.triviumgor.network.ApiClient;
 import com.example.triviumgor.network.SincronizacionManager;
+import com.example.triviumgor.util.JwtUtils;
 import com.google.android.material.textfield.TextInputEditText;
 
 import org.json.JSONObject;
@@ -75,10 +76,27 @@ public class LoginActivity extends AppCompatActivity {
         // Inicializar Controller
         usuarioController = new UsuarioController(this, dataManager);
 
-        // Verificar sesión activa
+        // Verificar sesión activa. Si el JWT guardado caduco mientras la app
+        // estaba cerrada, expulsamos al form sin pasar por MainActivity en
+        // lugar de esperar a que la primera request reciba 401 (auto-logout
+        // reactivo). Token vacio no se considera expirado: usuarios con
+        // sesion offline (login local sin internet) pueden tener
+        // isLoggedIn=true sin jwt_token guardado.
         if (usuarioController.haySesionActiva()) {
-            navigateToMain();
-            return;
+            SharedPreferences prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
+            String token = prefs.getString("jwt_token", "");
+            if (JwtUtils.isExpired(token)) {
+                prefs.edit().clear().apply();
+                ApiClient.logoutEnCurso.set(false);
+                Toast.makeText(this,
+                        "Sesión caducada, vuelve a iniciar sesión",
+                        Toast.LENGTH_LONG).show();
+                // Sin return: cae al codigo de inicializar vistas para que
+                // el usuario vea el form de login.
+            } else {
+                navigateToMain();
+                return;
+            }
         }
 
         // Inicializar vistas
