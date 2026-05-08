@@ -684,6 +684,11 @@ public class PacienteDataManager {
             long idSesion = database.insert(PacienteDBHelper.TABLE_SESIONES, null, values);
 
             if (idSesion != -1) {
+                // Registrar la primera fila del log de actualizaciones con los
+                // valores iniciales, para que el historico siempre tenga al
+                // menos una entrada (incluso si el medico no pulsa Actualizar
+                // durante la sesion).
+                registrarActualizacionSesion(idSesion, intensidad, tiempo);
                 Log.d("PacienteDataManager", "Sesión registrada con éxito, ID: " + idSesion);
             } else {
                 Log.e("PacienteDataManager", "Error al registrar sesión");
@@ -694,6 +699,73 @@ public class PacienteDataManager {
             Log.e("PacienteDataManager", "Error al registrar sesión: " + e.getMessage());
             return -1;
         }
+    }
+
+    /**
+     * Registra una actualizacion de parametros de una sesion en curso. Cada
+     * toque del medico al boton "Actualizar" durante una sesion deberia llamar
+     * a este metodo con los valores nuevos. La primera fila por sesion la crea
+     * automaticamente registrarSesion con los valores iniciales.
+     */
+    public long registrarActualizacionSesion(long idSesion, int intensidad, int tiempo) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+            String fechaActual = sdf.format(new Date());
+
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_SA_SESION_ID, idSesion);
+            values.put(PacienteDBHelper.COLUMN_SA_INTENSIDAD, intensidad);
+            values.put(PacienteDBHelper.COLUMN_SA_TIEMPO, tiempo);
+            values.put(PacienteDBHelper.COLUMN_SA_FECHA, fechaActual);
+
+            long id = database.insert(PacienteDBHelper.TABLE_SESION_ACTUALIZACION, null, values);
+            if (id == -1) {
+                Log.e("PacienteDataManager", "Error al registrar actualizacion de sesion " + idSesion);
+            }
+            return id;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error al registrar actualizacion: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    /**
+     * Devuelve las actualizaciones de una sesion ordenadas por fecha ASC (la
+     * primera es el "Inicio"). Devuelve lista vacia si la sesion no tiene
+     * entradas (caso de sesiones legacy anteriores al feature).
+     */
+    public JSONArray obtenerActualizacionesDeSesion(long idSesion) {
+        JSONArray actualizaciones = new JSONArray();
+        Cursor cursor = null;
+        try {
+            cursor = database.query(
+                    PacienteDBHelper.TABLE_SESION_ACTUALIZACION,
+                    new String[]{
+                            PacienteDBHelper.COLUMN_SA_INTENSIDAD,
+                            PacienteDBHelper.COLUMN_SA_TIEMPO,
+                            PacienteDBHelper.COLUMN_SA_FECHA},
+                    PacienteDBHelper.COLUMN_SA_SESION_ID + " = ?",
+                    new String[]{String.valueOf(idSesion)},
+                    null, null,
+                    PacienteDBHelper.COLUMN_SA_FECHA + " ASC");
+            if (cursor != null && cursor.moveToFirst()) {
+                int idxInt = cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_SA_INTENSIDAD);
+                int idxTie = cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_SA_TIEMPO);
+                int idxFec = cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_SA_FECHA);
+                do {
+                    JSONObject act = new JSONObject();
+                    act.put("intensidad", cursor.getInt(idxInt));
+                    act.put("tiempo",     cursor.getInt(idxTie));
+                    act.put("fecha",      cursor.getString(idxFec));
+                    actualizaciones.put(act);
+                } while (cursor.moveToNext());
+            }
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "Error obtenerActualizacionesDeSesion: " + e.getMessage());
+        } finally {
+            if (cursor != null) cursor.close();
+        }
+        return actualizaciones;
     }
     /**
      * Obtiene todas las sesiones de un paciente
@@ -1370,12 +1442,18 @@ public class PacienteDataManager {
                                 + ": paciente aún sin server_id, se subirá tras crear el paciente en server");
                         continue;
                     }
+                    long sesionIdLocal = cursor.getLong(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_SESION_ID));
                     JSONObject sesion = new JSONObject();
                     sesion.put("pacienteId",  serverId.intValue());
                     sesion.put("dispositivo", cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_DISPOSITIVO)));
                     sesion.put("fecha",       cursor.getString(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_FECHA)));
                     sesion.put("intensidad",  cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_INTENSIDAD_SESION)));
                     sesion.put("tiempo",      cursor.getInt(cursor.getColumnIndexOrThrow(PacienteDBHelper.COLUMN_TIEMPO_SESION)));
+                    // Log de actualizaciones (cambios de parametros durante la
+                    // sesion). Embebido en el objeto sesion para que el server
+                    // las inserte atomicamente con la sesion en el mismo INSERT,
+                    // sin necesidad de mapear ids despues.
+                    sesion.put("actualizaciones", obtenerActualizacionesDeSesion(sesionIdLocal));
                     sesiones.put(sesion);
                 } while (cursor.moveToNext());
             }
@@ -1688,6 +1766,12 @@ public class PacienteDataManager {
 
         database.beginTransaction();
         try {
+            // Borramos sesion_actualizacion ANTES que sesiones por la FK
+            // declarada (aunque SQLite no la enforza, mantenemos el orden
+            // logico: hijas primero, padres despues). Tras el delete los
+            // INSERTs de mas abajo recrean ambas tablas con los datos del
+            // server.
+            database.delete(PacienteDBHelper.TABLE_SESION_ACTUALIZACION, null, null);
             database.delete(PacienteDBHelper.TABLE_SESIONES, null, null);
 
             int saltadas = 0;
@@ -1710,7 +1794,25 @@ public class PacienteDataManager {
                     values.put(PacienteDBHelper.COLUMN_FECHA, s.optString("fecha"));
                     values.put(PacienteDBHelper.COLUMN_INTENSIDAD_SESION, s.optInt("intensidad"));
                     values.put(PacienteDBHelper.COLUMN_TIEMPO_SESION, s.optInt("tiempo"));
-                    database.insert(PacienteDBHelper.TABLE_SESIONES, null, values);
+                    long sesionIdInsertado = database.insert(PacienteDBHelper.TABLE_SESIONES, null, values);
+
+                    // Insertar actualizaciones (log de cambios de parametros).
+                    // Sesiones legacy del server vendran sin este campo o con
+                    // array vacio: se omite el bucle limpiamente.
+                    JSONArray actualizaciones = s.optJSONArray("actualizaciones");
+                    if (actualizaciones != null && sesionIdInsertado != -1) {
+                        for (int j = 0; j < actualizaciones.length(); j++) {
+                            try {
+                                JSONObject act = actualizaciones.getJSONObject(j);
+                                ContentValues va = new ContentValues();
+                                va.put(PacienteDBHelper.COLUMN_SA_SESION_ID, sesionIdInsertado);
+                                va.put(PacienteDBHelper.COLUMN_SA_INTENSIDAD, act.optInt("intensidad"));
+                                va.put(PacienteDBHelper.COLUMN_SA_TIEMPO,     act.optInt("tiempo"));
+                                va.put(PacienteDBHelper.COLUMN_SA_FECHA,      act.optString("fecha"));
+                                database.insert(PacienteDBHelper.TABLE_SESION_ACTUALIZACION, null, va);
+                            } catch (Exception ignored) { /* skip malformed */ }
+                        }
+                    }
                 } catch (Exception e) {
                     // Una sesion malformada (JSON invalido, falta id, etc) NO debe
                     // abortar toda la descarga: se loguea y se sigue.

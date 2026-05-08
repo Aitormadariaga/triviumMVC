@@ -69,6 +69,15 @@ public class SesionController {
         return dataManager.registrarSesion(idPaciente, dispositivo, intensidad, tiempo);
     }
 
+    /**
+     * Registra una actualizacion de parametros de una sesion en curso. Cada
+     * toque de "Actualizar" durante la sesion de tratamiento añade una entrada
+     * al log para que el historico la muestre como detalle de la sesion.
+     */
+    public long registrarActualizacion(long idSesion, int intensidad, int tiempo) {
+        return dataManager.registrarActualizacionSesion(idSesion, intensidad, tiempo);
+    }
+
     // ========================
     // CONSULTAS
     // ========================

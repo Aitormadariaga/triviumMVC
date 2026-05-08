@@ -163,6 +163,31 @@ public class HistorialSesionesActivity extends AppCompatActivity {
         tvIntensidad.setText(String.valueOf(sesion.getIntensidad()));
         tvTiempo.setText(sesion.getTiempo() + " minutos");
 
+        // Detalle de cambios de parametros durante la sesion (log).
+        // Visible solo si hay >=2 entradas: con una sola es la inicial, no
+        // aporta informacion extra al panel de arriba.
+        LinearLayout layoutActualizaciones = dialogView.findViewById(R.id.layoutActualizaciones);
+        TextView tvActualizaciones = dialogView.findViewById(R.id.tvActualizaciones);
+        org.json.JSONArray actualizaciones = dataManager.obtenerActualizacionesDeSesion(sesion.getId());
+        if (actualizaciones != null && actualizaciones.length() >= 2) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < actualizaciones.length(); i++) {
+                try {
+                    org.json.JSONObject act = actualizaciones.getJSONObject(i);
+                    String fechaAct = act.optString("fecha", "");
+                    // Mostrar solo HH:mm:ss para no repetir la fecha.
+                    String hora = fechaAct.length() >= 19 ? fechaAct.substring(11, 19) : fechaAct;
+                    String tipo = (i == 0) ? "Inicio" : "Actualización";
+                    sb.append(hora)
+                      .append("  ").append(tipo)
+                      .append("  ").append(act.optInt("intensidad")).append(" mA")
+                      .append(" / ").append(act.optInt("tiempo")).append(" min");
+                    if (i < actualizaciones.length() - 1) sb.append("\n");
+                } catch (Exception ignored) {}
+            }
+            tvActualizaciones.setText(sb.toString());
+            layoutActualizaciones.setVisibility(View.VISIBLE);
+        }
 
         final AlertDialog dialog = builder.create();
 

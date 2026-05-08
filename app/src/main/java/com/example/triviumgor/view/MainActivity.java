@@ -122,6 +122,12 @@ public class MainActivity extends AppCompatActivity
     private String nombrePaciente2, DNIpaciente2;
     private int opcionDispositivoInt = -1;
 
+    // _id LOCAL de la sesion activa para cada dispositivo. -1 = no hay sesion
+    // en curso (o ya se finalizo). Lo usamos para enlazar las actualizaciones
+    // (toques de "Actualizar") con la sesion en sesion_actualizacion.
+    private long idSesion1 = -1;
+    private long idSesion2 = -1;
+
     // ========================
     // CONTROL DE PERMISO BT PENDIENTE
     // ========================
@@ -498,14 +504,18 @@ public class MainActivity extends AppCompatActivity
             int intensidad = Integer.parseInt(Param3.getText().toString());
             int duracion = Integer.parseInt(Param4.getText().toString());
 
-            // Registrar sesión en cada toque del boton (Iniciar y Actualizar):
-            // cada cambio de intensidad/tiempo deja constancia en el historico
-            // del paciente con su propio timestamp. El servidor las trata como
-            // sesiones independientes (dedup por paciente+fecha+dispositivo,
-            // y la fecha cambia en cada llamada a registrarSesionEnDB).
-            if (DNIpaciente != null && !DNIpaciente.isEmpty()) {
-                registrarSesionEnDB(DNIpaciente, dispBluetoothNom1.getText().toString(),
+            // Iniciar (clockStopped): crea fila en sesiones + primera fila
+            //   del log con los valores iniciales (registrarSesion lo hace
+            //   automaticamente). Guardamos el _id local para enlazar
+            //   actualizaciones posteriores.
+            // Actualizar (clock activo + idSesion previa): solo añade entrada
+            //   al log para mostrar la evolucion en el historico, sin duplicar
+            //   la fila en sesiones.
+            if (dispositivo1.isClockStopped() && DNIpaciente != null && !DNIpaciente.isEmpty()) {
+                idSesion1 = registrarSesionEnDB(DNIpaciente, dispBluetoothNom1.getText().toString(),
                         intensidad, duracion);
+            } else if (!dispositivo1.isClockStopped() && idSesion1 != -1) {
+                sesionController.registrarActualizacion(idSesion1, intensidad, duracion);
             }
 
             boolean esNueva = tratamientoController.iniciarOActualizarSesion(
@@ -524,10 +534,12 @@ public class MainActivity extends AppCompatActivity
             int intensidad = Integer.parseInt(Param10.getText().toString());
             int duracion = Integer.parseInt(Param12.getText().toString());
 
-            // Registrar en cada toque (mismo motivo que dispositivo 1).
-            if (DNIpaciente2 != null && !DNIpaciente2.isEmpty()) {
-                registrarSesionEnDB(DNIpaciente2, dispBluetoothNom2.getText().toString(),
+            // Mismo flujo que dispositivo 1.
+            if (dispositivo2.isClockStopped() && DNIpaciente2 != null && !DNIpaciente2.isEmpty()) {
+                idSesion2 = registrarSesionEnDB(DNIpaciente2, dispBluetoothNom2.getText().toString(),
                         intensidad, duracion);
+            } else if (!dispositivo2.isClockStopped() && idSesion2 != -1) {
+                sesionController.registrarActualizacion(idSesion2, intensidad, duracion);
             }
 
             boolean esNueva = tratamientoController.iniciarOActualizarSesion(
@@ -543,6 +555,7 @@ public class MainActivity extends AppCompatActivity
         FinPulsos.setOnClickListener(v -> {
             if (!dispositivo1.isConnected()) return;
             tratamientoController.finalizarSesion(dispositivo1);
+            idSesion1 = -1;  // proxima Iniciar sera sesion nueva.
             InicioPulsos.setText("Iniciar");
             UIHelper.resetButtonToDefault(InicioPulsos);
             UIHelper.setButtonColor(FinPulsos, UIHelper.COLOR_SESION_PARADA);
@@ -552,6 +565,7 @@ public class MainActivity extends AppCompatActivity
         FinPulsos2.setOnClickListener(v -> {
             if (!dispositivo2.isConnected()) return;
             tratamientoController.finalizarSesion(dispositivo2);
+            idSesion2 = -1;
             InicioPulsos2.setText("Iniciar");
             UIHelper.resetButtonToDefault(InicioPulsos2);
             UIHelper.setButtonColor(FinPulsos2, UIHelper.COLOR_SESION_PARADA);
@@ -761,24 +775,31 @@ public class MainActivity extends AppCompatActivity
         param.setText(String.valueOf(valor));
     }
 
-    private void registrarSesionEnDB(String dniPaciente, String nombreDisp,
+    /**
+     * Inserta la sesion en BD y devuelve su _id local. -1 si no se pudo
+     * (paciente no encontrado o error de SQL). El id se usa luego para enlazar
+     * los toques de "Actualizar" con la fila de sesion via sesion_actualizacion.
+     */
+    private long registrarSesionEnDB(String dniPaciente, String nombreDisp,
                                      int intensidad, int duracion) {
         Paciente pac = buscarPacientePorDNI(dniPaciente);
-        if (pac != null) {
-            long error = (long)-1;
-            if (usuarioController.haySesionActiva()){
-                int idUsuarioActual = usuarioController.getUsuarioActual().getId();
-                error = sesionController.registrarSesion(pac.getID(), idUsuarioActual, nombreDisp, intensidad, duracion);
-            }else {
-                error = sesionController.registrarSesion(pac.getID(), nombreDisp, intensidad, duracion);
-            }
-
-            if (error == (long)-1){
-                Toast.makeText(this, "Hubo error al guardar la Sesion en la BBDD", Toast.LENGTH_LONG);
-            }
-        }else{
-            Toast.makeText(this,"No se a podido detectar al Paciente", Toast.LENGTH_SHORT);
+        if (pac == null) {
+            Toast.makeText(this, "No se a podido detectar al Paciente", Toast.LENGTH_SHORT).show();
+            return -1;
         }
+
+        long idSesion;
+        if (usuarioController.haySesionActiva()) {
+            int idUsuarioActual = usuarioController.getUsuarioActual().getId();
+            idSesion = sesionController.registrarSesion(pac.getID(), idUsuarioActual, nombreDisp, intensidad, duracion);
+        } else {
+            idSesion = sesionController.registrarSesion(pac.getID(), nombreDisp, intensidad, duracion);
+        }
+
+        if (idSesion == -1) {
+            Toast.makeText(this, "Hubo error al guardar la Sesion en la BBDD", Toast.LENGTH_LONG).show();
+        }
+        return idSesion;
     }
 
     private Paciente buscarPacientePorDNI(String dni) {

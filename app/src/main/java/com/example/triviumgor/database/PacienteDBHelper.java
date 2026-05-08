@@ -35,7 +35,13 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     //    INSERT creaba fila nueva, las N-1 ultimas viajaban con
     //    fechaActualizacionLocal viejo y el server las marcaba conflicto).
     //    Las filas eliminar=1 pueden coexistir (caso raro: borrado pendiente).
-    private static final int DATABASE_VERSION = 9;
+    //    v9 → v10: tabla sesion_actualizacion para log de cambios de
+    //    parametros (intensidad/tiempo) durante una sesion. La primera fila
+    //    refleja los valores iniciales y cada toque de "Actualizar" del
+    //    medico añade una fila nueva. Permite mostrar la evolucion completa
+    //    dentro del detalle de la sesion en el historico, sin crear filas
+    //    duplicadas en TABLE_SESIONES.
+    private static final int DATABASE_VERSION = 10;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -136,6 +142,18 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String TABLE_ELIMINACIONES_PENDIENTES = "eliminaciones_pendientes";
     public static final String COLUMN_EP_PACIENTE_ID = "paciente_id";
 
+    // Tabla SESION_ACTUALIZACION: log cronologico de cambios de parametros
+    // (intensidad/tiempo) durante una sesion. Primera fila = valores iniciales
+    // al pulsar "Iniciar"; cada fila siguiente = un toque de "Actualizar" del
+    // medico durante la sesion. Permite ver la evolucion en el detalle del
+    // historico sin duplicar filas en TABLE_SESIONES.
+    public static final String TABLE_SESION_ACTUALIZACION = "sesion_actualizacion";
+    public static final String COLUMN_SA_ID = "_id";
+    public static final String COLUMN_SA_SESION_ID = "sesion_id";
+    public static final String COLUMN_SA_INTENSIDAD = "intensidad";
+    public static final String COLUMN_SA_TIEMPO = "tiempo";
+    public static final String COLUMN_SA_FECHA = "fecha";
+
     // Sentencia SQL para crear la tabla.
     // server_id es UNIQUE para evitar dos filas locales con el mismo id
     // de servidor; en SQLite un UNIQUE permite múltiples NULL, por lo que
@@ -235,6 +253,17 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
             "CREATE TABLE " + TABLE_ELIMINACIONES_PENDIENTES + " (" +
                     COLUMN_EP_PACIENTE_ID + " INTEGER PRIMARY KEY)";
 
+    // SQL para crear tabla SESION_ACTUALIZACION.
+    private static final String SQL_CREATE_SESION_ACTUALIZACION =
+            "CREATE TABLE " + TABLE_SESION_ACTUALIZACION + " (" +
+                    COLUMN_SA_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    COLUMN_SA_SESION_ID + " INTEGER NOT NULL, " +
+                    COLUMN_SA_INTENSIDAD + " INTEGER NOT NULL, " +
+                    COLUMN_SA_TIEMPO + " INTEGER NOT NULL, " +
+                    COLUMN_SA_FECHA + " TEXT NOT NULL, " +
+                    "FOREIGN KEY (" + COLUMN_SA_SESION_ID + ") REFERENCES " +
+                    TABLE_SESIONES + "(" + COLUMN_SESION_ID + "))";
+
     // Constructor modificado
     public PacienteDBHelper(Context context, byte[] passphrase) {
         // El constructor "largo" de net.zetetic.database.sqlcipher.SQLiteOpenHelper:
@@ -281,6 +310,9 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                 TABLE_BACKUP_PENDIENTE + "(" + COLUMN_BP_PACIENTE_ID + ") " +
                 "WHERE " + COLUMN_BP_ELIMINAR + " = 0");
         db.execSQL(SQL_CREATE_ELIMINACIONES_PENDIENTES);
+        db.execSQL(SQL_CREATE_SESION_ACTUALIZACION);
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_sesion_actualizacion_sesion ON " +
+                TABLE_SESION_ACTUALIZACION + "(" + COLUMN_SA_SESION_ID + ")");
 
         // Insertar usuario administrador por defecto
         insertarUsuarioAdmin(db);
@@ -444,6 +476,21 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             // reproducir. Mejor fallar limpio.
             Log.e("PacienteDBHelper", "Error en migración v8→v9", e);
             throw new RuntimeException("Migración v8→v9 fallida", e);
+        }
+    }
+    if (oldVersion < 10) {
+        // Migracion v9 → v10: log de actualizaciones de parametros
+        // durante una sesion (intensidad/tiempo). Tabla nueva con FK a
+        // sesiones. Indice por sesion_id para lookups del historico.
+        try {
+            db.execSQL(SQL_CREATE_SESION_ACTUALIZACION);
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_sesion_actualizacion_sesion ON " +
+                    TABLE_SESION_ACTUALIZACION + "(" + COLUMN_SA_SESION_ID + ")");
+            Log.d("PacienteDBHelper",
+                    "Migracion v9->v10: tabla sesion_actualizacion creada con indice");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error en migración v9→v10", e);
+            throw new RuntimeException("Migración v9→v10 fallida", e);
         }
     }
 }
