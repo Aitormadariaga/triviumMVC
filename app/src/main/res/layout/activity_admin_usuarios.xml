@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+NestedScrollView (en lugar de ScrollView) porque mide correctamente
+los hijos con nestedScrollingEnabled=false (el RecyclerView de
+usuarios). Con ScrollView nativo el RecyclerView quedaba "truncado"
+a ~3 items aunque el adapter tuviera mas — Android medía mal la
+altura del wrap_content. NestedScrollView coordina bien la medicion.
+-->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -187,4 +194,4 @@
 
     </LinearLayout>
 
-</ScrollView>
+</androidx.core.widget.NestedScrollView>
