@@ -42,8 +42,10 @@ import com.example.triviumgor.database.PacienteDataManager;
 import com.example.triviumgor.model.DispositivoState;
 import com.example.triviumgor.model.Paciente;
 import com.example.triviumgor.model.Usuario;
+import com.example.triviumgor.network.ApiClient;
 import com.example.triviumgor.network.SincronizacionListener;
 import com.example.triviumgor.network.SincronizacionManager;
+import com.example.triviumgor.util.SecurePrefs;
 import com.example.triviumgor.util.UIHelper;
 
 import org.json.JSONArray;
@@ -1290,10 +1292,34 @@ public class MainActivity extends AppCompatActivity
 
     /**
      * Cerrar Sesión - Todos
+     *
+     * Antes de limpiar tokens locales intentamos invalidar el refresh_token
+     * en servidor (POST /api/logout). Fire-and-forget: no bloqueamos la UI
+     * por una llamada de red — si falla la red, igual cerramos sesion local
+     * y el server invalidara por TTL.
      */
     private boolean manejarCerrarSesion() {
-        // ✨ Una sola línea vs 5 líneas antes
+        SecurePrefs secure = new SecurePrefs(this);
+        String refreshToken = secure.getRefreshToken();
+
+        if (refreshToken != null && !refreshToken.isEmpty()
+                && SincronizacionManager.hayInternet(this)) {
+            // Capturamos el token ANTES de limpiar local. El callback solo
+            // loguea; no bloqueamos la salida.
+            new ApiClient(this).logout(refreshToken, new ApiClient.ApiCallback() {
+                @Override
+                public void onSuccess(org.json.JSONObject response) {
+                    android.util.Log.d(TAG, "Logout server OK");
+                }
+                @Override
+                public void onError(String mensaje) {
+                    android.util.Log.w(TAG, "Logout server fallo: " + mensaje);
+                }
+            });
+        }
+
         usuarioController.logout();
+        secure.clearTokens();
 
         Intent intent = new Intent(this, LoginActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);

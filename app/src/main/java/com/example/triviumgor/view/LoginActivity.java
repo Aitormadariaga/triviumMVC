@@ -23,6 +23,7 @@ import com.example.triviumgor.controller.UsuarioController;
 import com.example.triviumgor.network.ApiClient;
 import com.example.triviumgor.network.SincronizacionManager;
 import com.example.triviumgor.util.JwtUtils;
+import com.example.triviumgor.util.SecurePrefs;
 import com.google.android.material.textfield.TextInputEditText;
 
 import org.json.JSONObject;
@@ -83,10 +84,21 @@ public class LoginActivity extends AppCompatActivity {
         // sesion offline (login local sin internet) pueden tener
         // isLoggedIn=true sin jwt_token guardado.
         if (usuarioController.haySesionActiva()) {
-            SharedPreferences prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
-            String token = prefs.getString("jwt_token", "");
-            if (JwtUtils.isExpired(token)) {
+            SecurePrefs secure = new SecurePrefs(this);
+            String token = secure.getAccessToken();
+            // Si el access caduco mientras la app estaba cerrada PERO tenemos
+            // refresh_token guardado, dejamos pasar a MainActivity: el primer
+            // request 401 disparara el flujo de refresh automatico. Solo
+            // expulsamos a Login si no hay refresh_token (o token vacio y
+            // expirado, es decir sin sesion API recuperable).
+            String refreshToken = secure.getRefreshToken();
+            boolean accessCaducado = JwtUtils.isExpired(token);
+            boolean podemosRefrescar = refreshToken != null && !refreshToken.isEmpty();
+
+            if (accessCaducado && !podemosRefrescar) {
+                SharedPreferences prefs = getSharedPreferences("LoginPrefs", MODE_PRIVATE);
                 prefs.edit().clear().apply();
+                secure.clearTokens();
                 ApiClient.logoutEnCurso.set(false);
                 Toast.makeText(this,
                         "Sesión caducada, vuelve a iniciar sesión",
@@ -158,6 +170,7 @@ public class LoginActivity extends AppCompatActivity {
             public void onSuccess(JSONObject response) {
                 try {
                     String token = response.getString("token");
+                    String refreshToken = response.optString("refresh_token", "");
 
                     // Decodificar el payload del JWT para obtener el rol del
                     // usuario sin tener que llamar a /api/perfil. El payload
@@ -182,12 +195,14 @@ public class LoginActivity extends AppCompatActivity {
                         // Si falla el decode mantenemos USER como fallback seguro.
                     }
 
-                    // Guardar token + rol derivado en SharedPreferences
+                    // Tokens (secretos) → almacen cifrado. Resto de campos
+                    // (isLoggedIn/username/rol) → SharedPreferences plano.
+                    new SecurePrefs(LoginActivity.this).setTokens(token, refreshToken);
+
                     getSharedPreferences("LoginPrefs", MODE_PRIVATE)
                             .edit()
                             .putBoolean("isLoggedIn", true)
                             .putString("username", username)
-                            .putString("jwt_token", token)
                             .putString("rol", rolDerivado)
                             .apply();
 
