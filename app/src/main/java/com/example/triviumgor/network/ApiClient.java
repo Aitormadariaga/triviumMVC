@@ -289,6 +289,60 @@ public class ApiClient {
     }
 
     // ============================================
+    // Gestion de usuarios (admin). Patron A1 cliente-delgado: estos
+    // endpoints son la unica via para crear/editar/desactivar usuarios.
+    // La BD local SQLite es cache de solo-lectura.
+    // ============================================
+
+    // GET /api/usuarios → {"usuarios":[{id,username,nombre,rol,activo,...}]}
+    public void getUsuarios(ApiCallback callback) {
+        enqueue(new RequestSpec(Request.Method.GET, "/api/usuarios", null, true, callback));
+    }
+
+    // POST /api/usuarios → {id, username, nombre, rol, activo}
+    // rol = "admin" o "usuario"
+    public void crearUsuario(String username, String password, String nombre,
+                             String rol, ApiCallback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("username", username);
+            body.put("password", password);
+            body.put("nombre", nombre);
+            body.put("rol", rol);
+            enqueue(new RequestSpec(Request.Method.POST, "/api/usuarios", body, true, callback));
+        } catch (Exception e) {
+            callback.onError("Error al preparar la petición");
+        }
+    }
+
+    // POST /api/usuarios/{id}/cambiar-password → {ok:true}
+    // Admin cambia password de OTRO usuario. Para auto-cambio existe
+    // cambiarPassword() (que llama a /api/cambiar-password) — requiere
+    // password actual y va por otro endpoint deliberadamente.
+    public void cambiarPasswordUsuario(int id, String passwordNuevo, ApiCallback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("passwordNuevo", passwordNuevo);
+            enqueue(new RequestSpec(Request.Method.POST,
+                    "/api/usuarios/" + id + "/cambiar-password", body, true, callback));
+        } catch (Exception e) {
+            callback.onError("Error al preparar la petición");
+        }
+    }
+
+    // PATCH /api/usuarios/{id}/activo → {id, activo}
+    public void setActivoUsuario(int id, boolean activo, ApiCallback callback) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("activo", activo);
+            enqueue(new RequestSpec(Request.Method.PATCH,
+                    "/api/usuarios/" + id + "/activo", body, true, callback));
+        } catch (Exception e) {
+            callback.onError("Error al preparar la petición");
+        }
+    }
+
+    // ============================================
     // Encolado central
     // ============================================
 

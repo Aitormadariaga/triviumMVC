@@ -1233,8 +1233,10 @@ public class MainActivity extends AppCompatActivity
             menu.add(0, 12, 12, "📊 Reportes Completos");
         }
 
-        // ==== MENÚ PARA ADMIN Y MÉDICOS ====
-        if (usuarioController.esAdminOMedico()) {
+        // ==== "Nuevo Paciente" disponible para todos los usuarios ====
+        // Antes era ADMIN+MEDICO. Tras unificar a admin/usuario el permiso
+        // CREAR_PACIENTE pasa a estar abierto a ambos roles.
+        if (usuarioController.tienePermiso(UsuarioController.AccionPermiso.CREAR_PACIENTE)) {
             menu.add(0, 11, 11, "➕ Nuevo Paciente");
         }
 

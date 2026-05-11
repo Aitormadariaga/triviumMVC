@@ -41,7 +41,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     //    medico añade una fila nueva. Permite mostrar la evolucion completa
     //    dentro del detalle de la sesion en el historico, sin crear filas
     //    duplicadas en TABLE_SESIONES.
-    private static final int DATABASE_VERSION = 10;
+    private static final int DATABASE_VERSION = 11;
     private static String DATABASE_PATH;
     private final Context mContext;
 
@@ -81,7 +81,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
     public static final String COLUMN_USERNAME = "username";
     public static final String COLUMN_PASSWORD_HASH = "password_hash";
     public static final String COLUMN_NOMBRE_COMPLETO = "nombre_completo";
-    public static final String COLUMN_ROL = "rol"; // admin, medico, enfermero, etc.
+    public static final String COLUMN_ROL = "rol"; // 'admin' o 'usuario' (modelo binario, alineado con web)
     public static final String COLUMN_ACTIVO = "activo"; // 1 = activo, 0 = inactivo
     public static final String COLUMN_FECHA_CREACION = "fecha_creacion";
     public static final String COLUMN_ULTIMO_ACCESO = "ultimo_acceso";
@@ -185,7 +185,7 @@ public class PacienteDBHelper extends SQLiteOpenHelper {
                     COLUMN_USERNAME + " TEXT UNIQUE NOT NULL, " +
                     COLUMN_PASSWORD_HASH + " TEXT NOT NULL, " +
                     COLUMN_NOMBRE_COMPLETO + " TEXT, " +
-                    COLUMN_ROL + " TEXT DEFAULT 'medico', " +
+                    COLUMN_ROL + " TEXT DEFAULT 'usuario', " +
                     COLUMN_ACTIVO + " INTEGER DEFAULT 1, " +
                     COLUMN_FECHA_CREACION + " TEXT NOT NULL, " +
                     COLUMN_ULTIMO_ACCESO + " TEXT)";
@@ -491,6 +491,31 @@ public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         } catch (Exception e) {
             Log.e("PacienteDBHelper", "Error en migración v9→v10", e);
             throw new RuntimeException("Migración v9→v10 fallida", e);
+        }
+    }
+    if (oldVersion < 11) {
+        // Migracion v10 → v11: colapsar roles de 5 valores (admin, medico,
+        // enfermero, fisioterapeuta, recepcionista) a 2 (admin, usuario).
+        // El modelo binario se alinea con la web (ROLE_ADMIN/ROLE_USER) y
+        // refleja el unico permiso diferenciado: admin gestiona usuarios y
+        // login, usuario hace todo lo demas. La gestion CRUD de usuarios
+        // pasa a delegarse al servidor via /api/usuarios; esta tabla local
+        // queda como cache para login offline.
+        //
+        // Robusto frente a casos limite: NULL, espacios, mayusculas, valores
+        // inesperados → todos caen en 'usuario'. Solo 'admin' (case-insensitive)
+        // se conserva.
+        try {
+            int filas = db.compileStatement(
+                    "UPDATE " + TABLE_USUARIOS + " SET " + COLUMN_ROL + " = " +
+                            "CASE WHEN LOWER(TRIM(COALESCE(" + COLUMN_ROL + ",''))) = 'admin' " +
+                            "THEN 'admin' ELSE 'usuario' END"
+            ).executeUpdateDelete();
+            Log.d("PacienteDBHelper",
+                    "Migracion v10->v11: roles normalizados a admin/usuario en " + filas + " filas");
+        } catch (Exception e) {
+            Log.e("PacienteDBHelper", "Error en migración v10→v11", e);
+            throw new RuntimeException("Migración v10→v11 fallida", e);
         }
     }
 }

@@ -173,9 +173,11 @@ public class LoginActivity extends AppCompatActivity {
                     String refreshToken = response.optString("refresh_token", "");
 
                     // Decodificar el payload del JWT para obtener el rol del
-                    // usuario sin tener que llamar a /api/perfil. El payload
-                    // está en el segundo segmento, codificado en base64url.
-                    String rolDerivado = "USER";
+                    // usuario sin tener que llamar a /api/perfil. Modelo
+                    // binario: si el JWT incluye ROLE_ADMIN → 'admin', si no →
+                    // 'usuario'. ROLE_USER es implicito (Symfony lo garantiza
+                    // en todos los users), asi que basta con buscar ROLE_ADMIN.
+                    String rolDerivado = "usuario";
                     try {
                         String[] parts = token.split("\\.");
                         if (parts.length >= 2) {
@@ -185,14 +187,15 @@ public class LoginActivity extends AppCompatActivity {
                             org.json.JSONArray roles = payload.optJSONArray("roles");
                             if (roles != null) {
                                 for (int i = 0; i < roles.length(); i++) {
-                                    String r = roles.getString(i);
-                                    if ("ROLE_ADMIN".equals(r)) { rolDerivado = "ADMIN"; break; }
-                                    if ("ROLE_MEDICO".equals(r)) { rolDerivado = "MEDICO"; }
+                                    if ("ROLE_ADMIN".equals(roles.getString(i))) {
+                                        rolDerivado = "admin";
+                                        break;
+                                    }
                                 }
                             }
                         }
                     } catch (Exception ignore) {
-                        // Si falla el decode mantenemos USER como fallback seguro.
+                        // Si falla el decode mantenemos 'usuario' como fallback seguro.
                     }
 
                     // Tokens (secretos) → almacen cifrado. Resto de campos
@@ -206,8 +209,12 @@ public class LoginActivity extends AppCompatActivity {
                             .putString("rol", rolDerivado)
                             .apply();
 
-                    // También hacer login local para mantener la sesión offline
-                    usuarioController.login(username, password);
+                    // Cache local: upsert con hash de la password recien validada
+                    // por el server, para permitir logins offline posteriores.
+                    // Si el usuario no existia en SQLite (creado por admin en
+                    // web), lo crea ahora.
+                    usuarioController.cacheUsuarioTrasLoginRemoto(
+                            username, password, username, rolDerivado);
 
                     runOnUiThread(() -> {
                         btnLogin.setEnabled(true);

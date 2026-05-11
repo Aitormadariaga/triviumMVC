@@ -19,9 +19,6 @@ public class UsuarioController {
     private static final String PREFS_NAME = "LoginPrefs";
 
     // Constantes de validación
-    private static final int MIN_USERNAME_LENGTH = 4;
-    private static final int MIN_PASSWORD_LENGTH = 6;
-
     // Dependencias
     private final PacienteDataManager dataManager;
     private final SharedPreferences sharedPreferences;
@@ -35,16 +32,23 @@ public class UsuarioController {
      * Enum que representa todos los roles del sistema
      * Incluye emoji, código de DB y descripción
      */
+    /**
+     * Roles del sistema. Modelo binario alineado con el servidor:
+     *   - admin: gestiona usuarios (CRUD via /api/usuarios) y login.
+     *   - usuario: todo lo demas (crear pacientes, sesiones, ver historial...).
+     *
+     * fromCodigo() es defensivo: roles legacy (medico/enfermero/fisioterapeuta/
+     * recepcionista) que sigan en la BD local devuelven USUARIO. La migracion
+     * de schema en PacienteDBHelper#onUpgrade normaliza la columna 'rol' al
+     * arrancar tras la actualizacion.
+     */
     public enum Rol {
         ADMIN("admin", "👑", "Administrador"),
-        MEDICO("medico", "👨‍⚕️", "Médico"),
-        ENFERMERO("enfermero", "👩‍⚕️", "Enfermero/a"),
-        FISIOTERAPEUTA("fisioterapeuta", "💪", "Fisioterapeuta"),
-        RECEPCIONISTA("recepcionista", "📋", "Recepcionista");
+        USUARIO("usuario", "👤", "Usuario");
 
-        private final String codigo;      // Código en DB
-        private final String emoji;       // Emoji visual
-        private final String descripcion; // Descripción legible
+        private final String codigo;
+        private final String emoji;
+        private final String descripcion;
 
         Rol(String codigo, String emoji, String descripcion) {
             this.codigo = codigo;
@@ -64,46 +68,28 @@ public class UsuarioController {
             return descripcion;
         }
 
-        /**
-         * Texto completo formateado: "👑 admin - Administrador"
-         */
         public String getTextoCompleto() {
             return emoji + " " + codigo + " - " + descripcion;
         }
 
         /**
-         * Busca un rol por su código de DB
-         * @param codigo Código del rol (ej: "admin")
-         * @return Rol correspondiente o null
+         * "admin" → ADMIN. Cualquier otra cosa (incluido null) → USUARIO.
+         * Asi cubrimos datos legacy (medico/enfermero/...) sin crashear.
          */
         public static Rol fromCodigo(String codigo) {
-            if (codigo == null) return null;
-            for (Rol rol : values()) {
-                if (rol.codigo.equals(codigo)) {
-                    return rol;
-                }
+            if (codigo != null && "admin".equalsIgnoreCase(codigo.trim())) {
+                return ADMIN;
             }
-            return null;
+            return USUARIO;
         }
 
-        /**
-         * Extrae el rol de un texto formateado
-         * Ejemplo: "👑 admin - Administrador" → ADMIN
-         */
         public static Rol fromTextoFormateado(String texto) {
-            if (texto == null) return null;
-            for (Rol rol : values()) {
-                if (texto.contains(rol.codigo)) {
-                    return rol;
-                }
+            if (texto != null && texto.contains("admin")) {
+                return ADMIN;
             }
-            return MEDICO; // Por defecto
+            return USUARIO;
         }
 
-        /**
-         * Obtiene todos los roles como array de textos formateados
-         * Para usar en Spinners
-         */
         public static String[] getTextosTodos() {
             Rol[] roles = values();
             String[] textos = new String[roles.length];
@@ -113,9 +99,6 @@ public class UsuarioController {
             return textos;
         }
 
-        /**
-         * Obtiene todos los roles como lista
-         */
         public static List<Rol> getTodos() {
             return Arrays.asList(values());
         }
@@ -217,81 +200,33 @@ public class UsuarioController {
     // ========================
 
     /**
-     * Crear usuario usando Rol enum
+     * Inserta o actualiza un usuario en la cache local SQLite a partir de los
+     * datos validados por el servidor en un login online. Es lo que cierra el
+     * loop offline: tras el primer login OK contra /api/login, este metodo
+     * guarda el hash de la password (recien validada por el server) en local,
+     * permitiendo logins offline posteriores. Sin esto, un usuario creado por
+     * admin en la web (vista por Android via GET /api/usuarios) podria
+     * autenticarse online pero nunca offline porque su hash local no existe.
+     *
+     * @return true si el upsert fue exitoso.
      */
-    public ResultadoOperacion crearUsuario(String username, String password,
-                                           String nombreCompleto, Rol rol) {
+    public boolean cacheUsuarioTrasLoginRemoto(String username, String password,
+                                               String nombreCompleto, String rolCodigo) {
         try {
-            ResultadoValidacion vUsername = validarUsername(username);
-            if (!vUsername.esValido) return new ResultadoOperacion(false, vUsername.mensaje);
-
-            ResultadoValidacion vPassword = validarPassword(password);
-            if (!vPassword.esValido) return new ResultadoOperacion(false, vPassword.mensaje);
-
-            if (TextUtils.isEmpty(nombreCompleto)) {
-                return new ResultadoOperacion(false, "Ingresa el nombre completo");
+            // Si ya existe localmente, refresh password+nombre+rol. Si no, crea.
+            Usuario existente = obtenerUsuarioPorUsername(username);
+            if (existente != null) {
+                dataManager.cambiarPassword(username, password);
+                // No refrescamos nombre/rol aqui — el upsert "full" de cache va
+                // por sincronizarUsuariosDesdeServer() al abrir AdminUsuarios.
+                return true;
             }
-
-            if (rol == null) {
-                return new ResultadoOperacion(false, "Rol no válido");
-            }
-
-            // Usar el código del enum para la DB
-            long resultado = dataManager.crearUsuario(username, password, nombreCompleto, rol.getCodigo());
-
-            if (resultado != -1) {
-                Log.d(TAG, "✓ Usuario creado: " + username + " (ID: " + resultado + ")");
-                return new ResultadoOperacion(true, "Usuario '" + username + "' creado exitosamente");
-            } else {
-                Log.w(TAG, "Usuario duplicado: " + username);
-                return new ResultadoOperacion(false, "El usuario '" + username + "' ya existe");
-            }
-
+            long id = dataManager.crearUsuario(username, password, nombreCompleto,
+                    rolCodigo != null ? rolCodigo : "usuario");
+            return id != -1;
         } catch (Exception e) {
-            Log.e(TAG, "Error al crear usuario: " + e.getMessage());
-            return new ResultadoOperacion(false, "Error al crear el usuario");
-        }
-    }
-
-    public ResultadoOperacion cambiarPassword(String username, String nuevaPassword) {
-        try {
-            ResultadoValidacion validacion = validarPassword(nuevaPassword);
-            if (!validacion.esValido) {
-                return new ResultadoOperacion(false, validacion.mensaje);
-            }
-
-            boolean ok = dataManager.cambiarPassword(username, nuevaPassword);
-
-            if (ok) {
-                Log.d(TAG, "✓ Contraseña cambiada: " + username);
-                return new ResultadoOperacion(true, "Contraseña cambiada exitosamente");
-            } else {
-                return new ResultadoOperacion(false, "Error al cambiar la contraseña");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error cambiar password: " + e.getMessage());
-            return new ResultadoOperacion(false, "Error al cambiar la contraseña");
-        }
-    }
-
-    public ResultadoOperacion toggleEstadoUsuario(String username, boolean activar) {
-        try {
-            if (username.equals(getUsernameActual()) && !activar) {
-                return new ResultadoOperacion(false, "No puedes desactivar tu propio usuario");
-            }
-
-            boolean ok = dataManager.establecerEstadoUsuario(username, activar);
-
-            if (ok) {
-                String accion = activar ? "activado" : "desactivado";
-                Log.d(TAG, "✓ Usuario " + accion + ": " + username);
-                return new ResultadoOperacion(true, "Usuario " + accion);
-            } else {
-                return new ResultadoOperacion(false, "Error al cambiar estado");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Error cambiar estado: " + e.getMessage());
-            return new ResultadoOperacion(false, "Error al cambiar el estado");
+            Log.e(TAG, "Error cacheando usuario tras login remoto: " + e.getMessage());
+            return false;
         }
     }
 
@@ -356,27 +291,6 @@ public class UsuarioController {
         return getRolActualEnum() == Rol.ADMIN;
     }
 
-    public boolean esMedico() {
-        return getRolActualEnum() == Rol.MEDICO;
-    }
-
-    public boolean esEnfermero() {
-        return getRolActualEnum() == Rol.ENFERMERO;
-    }
-
-    public boolean esFisioterapeuta() {
-        return getRolActualEnum() == Rol.FISIOTERAPEUTA;
-    }
-
-    public boolean esRecepcionista() {
-        return getRolActualEnum() == Rol.RECEPCIONISTA;
-    }
-
-    public boolean esAdminOMedico() {
-        Rol rol = getRolActualEnum();
-        return rol == Rol.ADMIN || rol == Rol.MEDICO;
-    }
-
     /**
      * Verifica si tiene un rol específico
      */
@@ -384,6 +298,14 @@ public class UsuarioController {
         return getRolActualEnum() == rol;
     }
 
+    /**
+     * Modelo binario: solo ADMINISTRAR_USUARIOS y VER_REPORTES_COMPLETOS son
+     * exclusivos de admin. Cualquier otra accion clinica esta abierta a todos
+     * los usuarios autenticados — usuarios no-admin pueden crear pacientes,
+     * editar, ver estadisticas, etc. Coincide con el modelo de la web donde
+     * ROLE_USER tiene todas las capacidades clinicas y ROLE_ADMIN suma solo
+     * la gestion del propio panel admin.
+     */
     public boolean tienePermiso(AccionPermiso accion) {
         Rol rol = getRolActualEnum();
         if (rol == null) return false;
@@ -396,8 +318,6 @@ public class UsuarioController {
             case CREAR_PACIENTE:
             case EDITAR_PACIENTE:
             case VER_ESTADISTICAS:
-                return rol == Rol.ADMIN || rol == Rol.MEDICO;
-
             case VER_PACIENTES:
             case CREAR_SESION:
             case VER_HISTORIAL_PACIENTE:
@@ -406,39 +326,6 @@ public class UsuarioController {
             default:
                 return false;
         }
-    }
-
-    // ========================
-    // VALIDACIONES PRIVADAS
-    // ========================
-
-    private ResultadoValidacion validarUsername(String username) {
-        if (TextUtils.isEmpty(username)) {
-            return new ResultadoValidacion(false, "Ingresa un nombre de usuario");
-        }
-        if (username.contains(" ")) {
-            return new ResultadoValidacion(false, "El usuario no puede contener espacios");
-        }
-        if (username.length() < MIN_USERNAME_LENGTH) {
-            return new ResultadoValidacion(false,
-                    "El usuario debe tener al menos " + MIN_USERNAME_LENGTH + " caracteres");
-        }
-        if (!username.matches("^[a-zA-Z0-9._-]+$")) {
-            return new ResultadoValidacion(false,
-                    "Solo letras, números, puntos, guiones y guiones bajos");
-        }
-        return new ResultadoValidacion(true, "");
-    }
-
-    private ResultadoValidacion validarPassword(String password) {
-        if (TextUtils.isEmpty(password)) {
-            return new ResultadoValidacion(false, "Ingresa una contraseña");
-        }
-        if (password.length() < MIN_PASSWORD_LENGTH) {
-            return new ResultadoValidacion(false,
-                    "La contraseña debe tener al menos " + MIN_PASSWORD_LENGTH + " caracteres");
-        }
-        return new ResultadoValidacion(true, "");
     }
 
     // ========================
@@ -505,16 +392,6 @@ public class UsuarioController {
 
         public ResultadoOperacion(boolean exitoso, String mensaje) {
             this.exitoso = exitoso;
-            this.mensaje = mensaje;
-        }
-    }
-
-    private static class ResultadoValidacion {
-        public final boolean esValido;
-        public final String mensaje;
-
-        public ResultadoValidacion(boolean esValido, String mensaje) {
-            this.esValido = esValido;
             this.mensaje = mensaje;
         }
     }

@@ -113,11 +113,14 @@ public class VentanaPacienteActivity extends AppCompatActivity {
         pacienteController = new PacienteController(this, dataManager);
         usuarioController = new UsuarioController(this, dataManager);
 
-        // Obtener el ID del usuario logueado y si es admin, sera -1 (para leer todos los pacientes)
         idUsuarioReal = getSharedPreferences("LoginPrefs", MODE_PRIVATE).getInt("userId", -1);
-        idUsuarioActual = usuarioController.esAdmin()
-                ? -1
-                : idUsuarioReal;
+        // Todos los usuarios ven todos los pacientes (-1 = sin filtro por usuario).
+        // Antes existia la logica "cada medico solo ve sus pacientes asignados"
+        // que mapeaba idUsuarioReal a filas de la tabla local usuario_paciente.
+        // El requisito clinico cambio: cualquier usuario autenticado ve la lista
+        // completa. idUsuarioReal sigue usandose al CREAR un paciente nuevo
+        // para registrar al creador (no para filtrar la lectura).
+        idUsuarioActual = -1;
 
         // Inicializar vistas básicas
         nomSelPaciente = findViewById(R.id.nombrePaciente);

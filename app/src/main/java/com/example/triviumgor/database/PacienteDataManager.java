@@ -266,6 +266,59 @@ public class PacienteDataManager {
         );
     }
 
+    /**
+     * Upsert de un usuario a partir de los datos del servidor (GET /api/usuarios).
+     * Si existe por username actualiza nombre/rol/activo/fechaCreacion/ultimoAcceso
+     * SIN tocar el password_hash — ese hash es local, se establece solo cuando
+     * el usuario hace login online en este dispositivo. Si no existe, lo crea
+     * con password_hash vacio (queda como cuenta visible pero sin posibilidad
+     * de login offline hasta que el usuario haga un login online aqui).
+     *
+     * @return true si la fila quedo persistida (insert o update con rowsAffected>0).
+     */
+    public boolean upsertUsuarioDesdeServer(String username, String nombreCompleto,
+                                            String rol, int activo,
+                                            String fechaCreacion, String ultimoAcceso) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(PacienteDBHelper.COLUMN_NOMBRE_COMPLETO, nombreCompleto);
+            values.put(PacienteDBHelper.COLUMN_ROL, rol != null ? rol : "usuario");
+            values.put(PacienteDBHelper.COLUMN_ACTIVO, activo);
+            if (fechaCreacion != null) {
+                values.put(PacienteDBHelper.COLUMN_FECHA_CREACION, fechaCreacion);
+            }
+            if (ultimoAcceso != null) {
+                values.put(PacienteDBHelper.COLUMN_ULTIMO_ACCESO, ultimoAcceso);
+            }
+
+            int rows = database.update(
+                    PacienteDBHelper.TABLE_USUARIOS,
+                    values,
+                    PacienteDBHelper.COLUMN_USERNAME + " = ?",
+                    new String[]{username}
+            );
+
+            if (rows > 0) {
+                return true;
+            }
+
+            // No existia: INSERT con hash vacio. El usuario podra hacer login
+            // ONLINE (el server valida pwd) y entonces cambiarPassword() local
+            // poblara el hash desde LoginActivity#onSuccess.
+            values.put(PacienteDBHelper.COLUMN_USERNAME, username);
+            values.put(PacienteDBHelper.COLUMN_PASSWORD_HASH, "");
+            if (!values.containsKey(PacienteDBHelper.COLUMN_FECHA_CREACION)) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+                values.put(PacienteDBHelper.COLUMN_FECHA_CREACION, sdf.format(new Date()));
+            }
+            long id = database.insert(PacienteDBHelper.TABLE_USUARIOS, null, values);
+            return id != -1;
+        } catch (Exception e) {
+            Log.e("PacienteDataManager", "upsertUsuarioDesdeServer error: " + e.getMessage());
+            return false;
+        }
+    }
+
     // ======= MÉTODOS PARA USUARIO_PACIENTE =======
 
     /**
