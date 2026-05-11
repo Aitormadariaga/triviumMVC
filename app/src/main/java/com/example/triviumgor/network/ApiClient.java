@@ -30,14 +30,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ApiClient {
     private static final String TAG = "ApiClient";
 
-    // 10.0.2.2 es el alias estandar del Android Emulator que mapea al host
-    // (localhost del PC). No usar "localhost" porque desde el emulador
-    // significa el propio dispositivo virtual. Tampoco depender de
-    // `adb reverse` porque la primera conexion intenta IPv6 (::1) que el
-    // server PHP no escucha y anyade un retraso considerable. Cuando se
-    // pruebe en un dispositivo fisico habra que cambiar esto por la IP del
-    // PC en la red local.
-    private static final String BASE_URL = "http://10.0.2.2:8000";
+    // Convencion del proyecto: usar localhost:8000 contra `adb reverse tcp:8000 tcp:8000`.
+    // Antes de probar en el emulador hay que configurar el reverse desde Terminal:
+    //   adb reverse tcp:8000 tcp:8000
+    // (se pierde al reiniciar el emulador, hay que rehacerlo). En dispositivo
+    // fisico hay que cambiar esto por la IP del PC en la red local.
+    private static final String BASE_URL = "http://localhost:8000";
     private static final String PREFS_NAME = "LoginPrefs";
 
     // Timeout estandar: 6s. Suficiente margen para latencia real, lo bastante
