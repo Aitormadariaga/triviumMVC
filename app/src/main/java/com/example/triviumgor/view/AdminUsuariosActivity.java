@@ -182,6 +182,12 @@ public class AdminUsuariosActivity extends AppCompatActivity {
                             // que ApiClient.parsearError convierte a "El usuario ya existe".
                             Toast.makeText(AdminUsuariosActivity.this,
                                     mensaje, Toast.LENGTH_LONG).show();
+                            // Refrescar lista aunque haya error: cubre el caso en
+                            // que el POST tardo mas que el timeout del cliente
+                            // pero el server alcanzo a persistir antes. El usuario
+                            // habria visto Toast de error y un usuario "fantasma"
+                            // creado server-side, ahora visible en la lista.
+                            cargarUsuarios();
                         });
                     }
                 });
@@ -414,9 +420,14 @@ public class AdminUsuariosActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         // Actualizar UI de conexion por si cambio mientras estaba en otra
-        // activity. Tambien refresca lista para reflejar cambios hechos
-        // en la web por otro admin.
+        // activity. Y refrescar la lista para reflejar cambios hechos en
+        // la web por otro admin desde fuera de esta activity. Tambien
+        // recupera creaciones cuyo POST cliente vio como fallo (p.ej.
+        // por timeout local) pero que el server si persistio.
         actualizarUiSegunConexion();
+        if (usuariosList != null) {
+            cargarUsuarios();
+        }
     }
 
     @Override
