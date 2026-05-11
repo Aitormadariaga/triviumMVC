@@ -29,13 +29,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ApiClient {
     private static final String TAG = "ApiClient";
-    private static final String BASE_URL = "http://localhost:8000";
+
+    // 10.0.2.2 es el alias estandar del Android Emulator que mapea al host
+    // (localhost del PC). No usar "localhost" porque desde el emulador
+    // significa el propio dispositivo virtual. Tampoco depender de
+    // `adb reverse` porque la primera conexion intenta IPv6 (::1) que el
+    // server PHP no escucha y anyade un retraso considerable. Cuando se
+    // pruebe en un dispositivo fisico habra que cambiar esto por la IP del
+    // PC en la red local.
+    private static final String BASE_URL = "http://10.0.2.2:8000";
     private static final String PREFS_NAME = "LoginPrefs";
 
-    // Timeout estandar para una request: 15s. Sin reintentos automaticos en
-    // endpoints con token: si un 401 entra, queremos un solo disparo de
-    // refresh, no que Volley vuelva a lanzar la misma con el token caducado.
-    private static final int REQUEST_TIMEOUT_MS = 15_000;
+    // Timeout estandar: 6s. Suficiente margen para latencia real, lo bastante
+    // corto para que el fallback offline triggeree rapido si no hay red. Sin
+    // reintentos automaticos en endpoints con token: si un 401 entra, queremos
+    // un solo disparo de refresh, no que Volley vuelva a lanzar la misma
+    // request con el token caducado.
+    private static final int REQUEST_TIMEOUT_MS = 6_000;
 
     // ============================================
     // Estado static (compartido entre todas las instancias del proceso)
@@ -396,10 +406,12 @@ public class ApiClient {
      */
     private void manejar401ConRefresh(RequestSpec spec) {
         pendientes.add(new PendingRequest(this, spec));
+        Log.d(TAG, "401 en " + spec.endpoint + " — encolado (pendientes=" + pendientes.size() + ")");
 
         if (!refreshEnCurso.compareAndSet(false, true)) {
             // Ya hay un refresh en vuelo: el spec quedara esperando en la
             // cola y se procesara cuando el refresh termine.
+            Log.d(TAG, "Refresh ya en curso, esperando");
             return;
         }
 
@@ -407,12 +419,14 @@ public class ApiClient {
         if (refreshToken == null || refreshToken.isEmpty()) {
             // Sin refresh_token no hay forma de renovar: caer directamente
             // al flujo de logout.
+            Log.w(TAG, "Sin refresh_token guardado — forzando logout");
             refreshEnCurso.set(false);
             fallarPendientes("Sesión caducada, inicia sesión de nuevo");
             forzarLogoutPorTokenExpirado();
             return;
         }
 
+        Log.d(TAG, "Disparando POST /api/token/refresh");
         refresh(refreshToken, new ApiCallback() {
             @Override
             public void onSuccess(JSONObject response) {
@@ -427,6 +441,8 @@ public class ApiClient {
 
                 secure.setTokens(nuevoAccess, nuevoRefresh);
                 refreshEnCurso.set(false);
+                int reencoladas = pendientes.size();
+                Log.d(TAG, "Refresh OK — reencolando " + reencoladas + " requests");
 
                 // Drenar cola reencolando con el nuevo token. Cada spec
                 // vuelve a pasar por enqueue() y getHeadersConToken() leera
@@ -439,7 +455,7 @@ public class ApiClient {
 
             @Override
             public void onError(String mensaje) {
-                Log.w(TAG, "Refresh fallido: " + mensaje);
+                Log.w(TAG, "Refresh fallido: " + mensaje + " — forzando logout");
                 // IMPORTANTE: fallar los pendientes ANTES de
                 // forzarLogoutPorTokenExpirado(), porque ese metodo cancela
                 // la RequestQueue y dejaria specs huerfanos sin notificar.
